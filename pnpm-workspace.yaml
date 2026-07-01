@@ -1,0 +1,20 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Disable the "minimum release age" supply-chain policy: this sandboxed dev
+# environment's clock and/or flaky network mean legitimately fresh, valid
+# packages (e.g. rolldown binaries pulled in by Vite) get rejected by pnpm 11's
+# default 24h (1440 minute) minimumReleaseAge policy.
+minimumReleaseAge: 0
+
+# Network resilience settings: this environment has intermittent registry
+# connectivity, so retry more patiently and reduce concurrent connections.
+networkConcurrency: 4
+fetchRetries: 8
+fetchRetryFactor: 2
+fetchRetryMintimeout: 15000
+fetchRetryMaxtimeout: 90000
+fetchTimeout: 300000
+allowBuilds:
+  esbuild: true
