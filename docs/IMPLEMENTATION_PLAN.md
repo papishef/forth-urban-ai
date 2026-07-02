@@ -83,7 +83,7 @@ Exit criteria: all three calculators produce mathematically correct, tested resu
 ## Phase 5 — LLM Advisory Layer
 
 Tasks:
-- Implement `AIProvider` interface + `OpenAIProvider` + `AnthropicProvider` + `AIAdvisoryService` fallback wrapper exactly as sketched in [ARCHITECTURE.md §1](ARCHITECTURE.md#llm-advisory-layer-appsserversrcmodulesai-advisory).
+- Implement `AIProvider` interface + `OpenAIProvider` + `GeminiProvider` + `AIAdvisoryService` fallback wrapper exactly as sketched in [ARCHITECTURE.md §1](ARCHITECTURE.md#llm-advisory-layer-appsserversrcmodulesai-advisory).
 - Prompt loader that reads versioned Markdown from `prompts/`, parses front-matter, validates required `inputs` are present in context before calling the provider.
 - Write the five prompts: `quiz-summary.md`, `recommendation.md`, `buyer-persona.md`, `inspection-advice.md`, `roi-explainer.md` — each takes only structured JSON context (readiness score, persona, budget range, property reasonTags, ROI numbers), never asks the model to compute anything.
 - API: `POST /api/ai/quiz-summary`, `/buyer-persona`, `/recommendation-explainer`, `/roi-explainer`, `/inspection-advice`, and a general `/ask` endpoint for follow-up questions scoped to the user's own stored context (no cross-user data, no vector DB).

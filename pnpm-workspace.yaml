@@ -18,3 +18,4 @@ fetchRetryMaxtimeout: 90000
 fetchTimeout: 300000
 allowBuilds:
   esbuild: true
+  mongodb-memory-server: true

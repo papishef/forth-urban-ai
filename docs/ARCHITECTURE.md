@@ -18,7 +18,7 @@ flowchart LR
     end
 
     OpenAI[OpenAI GPT-5.x]
-    Anthropic[Anthropic - fallback]
+    Gemini[Gemini - fallback]
 
     UI -->|quiz answers, calc inputs| API
     API --> DE
@@ -27,7 +27,7 @@ flowchart LR
     AI -->|natural-language explanation| API
     API -->|score + explanation| UI
     AI -.primary.-> OpenAI
-    AI -.fallback on failure.-> Anthropic
+    AI -.fallback on failure.-> Gemini
 ```
 
 ### Decision Engine (`apps/server/src/modules/decision-engine`)
@@ -67,8 +67,8 @@ export interface AIProvider {
 // apps/server/src/modules/ai-advisory/providers/openai.provider.ts
 export class OpenAIProvider implements AIProvider { /* GPT-5.x */ }
 
-// apps/server/src/modules/ai-advisory/providers/anthropic.provider.ts
-export class AnthropicProvider implements AIProvider { /* fallback */ }
+// apps/server/src/modules/ai-advisory/providers/gemini.provider.ts
+export class GeminiProvider implements AIProvider { /* fallback */ }
 
 // apps/server/src/modules/ai-advisory/ai-advisory.service.ts
 export class AIAdvisoryService {
