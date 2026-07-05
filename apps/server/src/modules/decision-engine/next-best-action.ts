@@ -1,3 +1,4 @@
+import type { BuyerGoal } from "@forth-urban/validation";
 import type { NextActionTrigger } from "@forth-urban/shared-types";
 
 /**
@@ -43,6 +44,10 @@ const NEXT_BEST_ACTION_TABLE: Record<NextActionTrigger, { action: string; reason
     action: "Invite virtual/physical inspection",
     reason: "Repeat viewing signals high intent",
   },
+  inspectionBooked: {
+    action: "Attend your inspection and watch for your advisor's follow-up",
+    reason: "Booking confirmed — the final step before ownership",
+  },
 };
 
 /** Looks up the deterministic next-best-action recommendation for a trigger. */
@@ -52,4 +57,27 @@ export function selectNextBestAction(trigger: NextActionTrigger): {
   reason: string;
 } {
   return { trigger, ...NEXT_BEST_ACTION_TABLE[trigger] };
+}
+
+/**
+ * Buyer-goal-aware refinement of the `hiddenCostGuideViewed` next action
+ * (PRODUCT_SPEC §9: "first-time buyers -> inspection checklist first;
+ * investors -> ROI projection first"). Falls back to the generic combined
+ * action from the Next Best Action table for every other buyer goal, or when
+ * the user has no profile yet.
+ */
+export function selectHiddenCostNextAction(buyerGoal: BuyerGoal | null): {
+  trigger: NextActionTrigger;
+  action: string;
+  reason: string;
+} {
+  const base = selectNextBestAction("hiddenCostGuideViewed");
+
+  if (buyerGoal === "firstTime") {
+    return { ...base, action: "View inspection checklist" };
+  }
+  if (buyerGoal === "investment") {
+    return { ...base, action: "Run ROI projection" };
+  }
+  return base;
 }

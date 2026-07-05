@@ -52,5 +52,88 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Decision Engine coverage (>=90% required)
+        run: pnpm --filter server run test:coverage -- src/modules/decision-engine
+
       - name: Build
         run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-test-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install pnpm
+        run: corepack prepare pnpm@11.9.0 --activate
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter client exec playwright install --with-deps chromium
+
+      # Playwright funnel + axe-core accessibility tests (docs/IMPLEMENTATION_PLAN.md
+      # Phase 9). All /api/** calls are network-mocked (apps/client/e2e/mocks.ts) —
+      # no backend/MongoDB is started for this job.
+      - name: Run E2E funnel + accessibility tests
+        run: pnpm --filter client exec playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/client/playwright-report/
+          retention-days: 7
+
+  # Phase 10 (docs/IMPLEMENTATION_PLAN.md#phase-10--cicd--deployment): fires
+  # on every push to `main` (i.e. after a PR merge), once lint/typecheck/
+  # test/build and e2e have already passed. Deploying is delegated to
+  # Render's/Vercel's own "Deploy Hook" URLs (see docs/DEPLOYMENT.md) rather
+  # than a full CLI/API-token integration, so the only secrets this job
+  # needs are two opaque webhook URLs — no cloud credentials touch CI. Both
+  # steps no-op (skip) until the corresponding repo secret is configured, so
+  # this job is safe to merge before deploy hooks exist.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint-typecheck-test-build, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook (backend)
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          else
+            echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping (see docs/DEPLOYMENT.md)."
+          fi
+
+      - name: Trigger Vercel deploy hook (frontend)
+        run: |
+          if [ -n "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          else
+            echo "VERCEL_DEPLOY_HOOK_URL secret not set — skipping (see docs/DEPLOYMENT.md)."
+          fi
+

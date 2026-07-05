@@ -130,3 +130,269 @@ export const areaQuizAnswersSchema = z.object({
   areaPreference: areaPreferenceSchema,
 });
 export type AreaQuizAnswers = z.infer<typeof areaQuizAnswersSchema>;
+
+/**
+ * Phase 4: Calculator input schemas (Budget/Hidden Cost/ROI — deterministic
+ * only, no LLM involvement). See docs/PRODUCT_SPEC.md#8-budget--installment-calculator-deterministic,
+ * §9, §10. `propertyId` is validated as a non-empty string here; the server
+ * looks it up and returns 404 if it doesn't resolve to a real property.
+ */
+const propertyIdSchema = z.string().trim().min(1, "Select a property");
+
+export const budgetCalculatorInputSchema = z.object({
+  propertyId: propertyIdSchema,
+  downPayment: z.number().nonnegative("Down payment cannot be negative"),
+  installmentDurationMonths: z.number().int().positive("Installment duration must be at least 1 month"),
+  monthlyIncome: z.number().nonnegative("Monthly income/contribution cannot be negative"),
+  includeHiddenCosts: z.boolean().default(false),
+});
+export type BudgetCalculatorInput = z.infer<typeof budgetCalculatorInputSchema>;
+
+export const hiddenCostCalculatorInputSchema = z.object({
+  propertyId: propertyIdSchema,
+});
+export type HiddenCostCalculatorInput = z.infer<typeof hiddenCostCalculatorInputSchema>;
+
+export const roiCalculatorInputSchema = z.object({
+  propertyId: propertyIdSchema,
+  years: z.number().int().positive("Years must be at least 1").max(50, "Years must be 50 or less"),
+});
+export type RoiCalculatorInput = z.infer<typeof roiCalculatorInputSchema>;
+
+/**
+ * Phase 5: LLM Advisory Layer input schemas. See docs/ARCHITECTURE.md#llm-advisory-layer-appsserversrcmodulesai-advisory.
+ * Every endpoint here is account-gated and pulls the user's own stored
+ * Decision Engine output as context server-side (AGENTS.md rule #2) — these
+ * schemas only accept identifiers/selections, never numbers to explain.
+ */
+export const roiScenarioKeySchema = z.enum(["conservative", "moderate", "optimistic"]);
+export type RoiScenarioKeyInput = z.infer<typeof roiScenarioKeySchema>;
+
+export const aiRoiExplainerInputSchema = z.object({
+  propertyId: propertyIdSchema,
+  years: z.number().int().positive("Years must be at least 1").max(50, "Years must be 50 or less"),
+  scenario: roiScenarioKeySchema,
+});
+export type AiRoiExplainerInput = z.infer<typeof aiRoiExplainerInputSchema>;
+
+export const aiRecommendationExplainerInputSchema = z.object({
+  propertyId: propertyIdSchema,
+});
+export type AiRecommendationExplainerInput = z.infer<typeof aiRecommendationExplainerInputSchema>;
+
+export const inspectionTypeSchema = z.enum(["physical", "virtual"]);
+export type InspectionType = z.infer<typeof inspectionTypeSchema>;
+
+export const aiInspectionAdviceInputSchema = z.object({
+  propertyId: propertyIdSchema,
+  inspectionType: inspectionTypeSchema,
+});
+export type AiInspectionAdviceInput = z.infer<typeof aiInspectionAdviceInputSchema>;
+
+export const aiAskInputSchema = z.object({
+  question: z.string().trim().min(1, "Enter a question").max(500, "Keep your question under 500 characters"),
+});
+export type AiAskInput = z.infer<typeof aiAskInputSchema>;
+
+/**
+ * Phase 6: Site Inspection Scheduler input schema. See
+ * docs/PRODUCT_SPEC.md#11-site-inspection-scheduler-the-conversion-event.
+ * `mainConcern` reuses `biggestFearSchema` — the same fear taxonomy already
+ * captured on the profile, so the booking form doesn't invent a new enum.
+ * Either `propertyId` (a specific matched land) or `recommendedArea` (from
+ * the Best Abuja Area Quiz) must be provided.
+ */
+export const inspectionBookingInputSchema = z
+  .object({
+    propertyId: z.string().trim().min(1).optional(),
+    recommendedArea: z.string().trim().min(1).max(120).optional(),
+    inspectionType: inspectionTypeSchema,
+    preferredDate: z.string().trim().min(1, "Choose a preferred date"),
+    preferredTime: z.string().trim().min(1, "Choose a preferred time"),
+    mainConcern: biggestFearSchema,
+    wantsDocsBeforeInspection: z.boolean().default(false),
+    whatsappNumber: z.string().trim().min(5, "Enter a valid WhatsApp number").max(20).optional(),
+  })
+  .refine((data) => Boolean(data.propertyId ?? data.recommendedArea), {
+    message: "Select a property or a recommended area",
+    path: ["propertyId"],
+  });
+export type InspectionBookingInput = z.infer<typeof inspectionBookingInputSchema>;
+
+/**
+ * Phase 7: Admin dashboard input schemas. See
+ * docs/IMPLEMENTATION_PLAN.md#phase-7--admin-dashboard. Every `/api/admin/*`
+ * route is gated to `role=admin` (enforced by middleware, not by these
+ * schemas), but every route still gets its own Zod schema per AGENTS.md
+ * rule #4.
+ */
+
+export const userRoleSchema = z.enum(["user", "admin", "sales"]);
+export type UserRoleInput = z.infer<typeof userRoleSchema>;
+
+export const userStatusSchema = z.enum(["active", "suspended"]);
+export type UserStatusInput = z.infer<typeof userStatusSchema>;
+
+export const adminUpdateUserSchema = z.object({
+  role: userRoleSchema.optional(),
+  status: userStatusSchema.optional(),
+});
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
+export const developmentStatusSchema = z.enum(["serviced", "developing", "planned", "completed"]);
+export type DevelopmentStatusInput = z.infer<typeof developmentStatusSchema>;
+
+const adminPaymentPlanSchema = z.object({
+  type: paymentStyleSchema,
+  label: z.string().trim().min(1, "Label is required"),
+  minDownPaymentPercent: z.number().min(0).max(100).nullable().optional(),
+  maxDurationMonths: z.number().int().positive().nullable().optional(),
+});
+
+const adminHiddenCostRuleSchema = z.object({
+  key: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  amount: z.number().nonnegative(),
+  applicable: z.boolean().default(true),
+});
+
+const adminRoiAssumptionsSchema = z.object({
+  conservative: z.number().min(0).max(5),
+  moderate: z.number().min(0).max(5),
+  optimistic: z.number().min(0).max(5),
+});
+
+const adminPropertyLocationSchema = z.object({
+  address: z.string().trim().min(1, "Address is required"),
+  landmarks: z.array(z.string().trim().min(1)).default([]),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
+});
+
+const adminPropertyMediaSchema = z.object({
+  photos: z.array(z.string().trim().min(1)).default([]),
+  videos: z.array(z.string().trim().min(1)).default([]),
+  googleMapsUrl: z.string().trim().min(1).nullable().optional(),
+  brochureUrl: z.string().trim().min(1).nullable().optional(),
+  titleDocuments: z.array(z.string().trim().min(1)).default([]),
+});
+
+export const adminPropertyInputSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  estateName: z.string().trim().min(1, "Estate name is required"),
+  location: adminPropertyLocationSchema,
+  pricePerPlot: z.number().nonnegative(),
+  plotSizes: z.array(z.string().trim().min(1)).default([]),
+  titleType: z.string().trim().min(1),
+  documentationStatus: z.string().trim().min(1),
+  paymentPlans: z.array(adminPaymentPlanSchema).default([]),
+  bestFitBuyerTypes: z.array(buyerGoalSchema).default([]),
+  developmentStatus: developmentStatusSchema,
+  inspectionAvailability: z.object({ physical: z.boolean().default(true), virtual: z.boolean().default(true) }),
+  hiddenCostRules: z.array(adminHiddenCostRuleSchema).default([]),
+  roiAssumptions: adminRoiAssumptionsSchema,
+  media: adminPropertyMediaSchema,
+  isActive: z.boolean().default(true),
+});
+export type AdminPropertyInput = z.infer<typeof adminPropertyInputSchema>;
+
+export const adminPropertyUpdateSchema = adminPropertyInputSchema.partial();
+export type AdminPropertyUpdateInput = z.infer<typeof adminPropertyUpdateSchema>;
+
+/** Media is uploaded as base64 (no multipart/multer dependency) — see cloudinary.util.ts. */
+export const adminMediaUploadSchema = z.object({
+  kind: z.enum(["image", "video", "document"]),
+  field: z.enum(["photos", "videos", "brochureUrl", "titleDocuments"]),
+  mimeType: z.string().trim().min(1),
+  base64Data: z.string().trim().min(1, "File data is required"),
+});
+export type AdminMediaUploadInput = z.infer<typeof adminMediaUploadSchema>;
+
+export const inspectionBookingStatusSchema = z.enum(["pending", "confirmed", "completed", "cancelled"]);
+export type InspectionBookingStatusInput = z.infer<typeof inspectionBookingStatusSchema>;
+
+export const adminUpdateInspectionSchema = z.object({
+  status: inspectionBookingStatusSchema.optional(),
+  assignedSalesRep: z.string().trim().min(1).nullable().optional(),
+});
+export type AdminUpdateInspectionInput = z.infer<typeof adminUpdateInspectionSchema>;
+
+export const pipelineStageSchema = z.enum([
+  "new",
+  "contacted",
+  "qualified",
+  "inspectionScheduled",
+  "inspectionCompleted",
+  "won",
+  "lost",
+]);
+export type PipelineStageInput = z.infer<typeof pipelineStageSchema>;
+
+export const adminUpdateCrmEventSchema = z.object({
+  pipelineStage: pipelineStageSchema.optional(),
+  addNote: z.string().trim().min(1).max(2000).optional(),
+  tags: z.array(z.string().trim().min(1)).optional(),
+  salesRepId: z.string().trim().min(1).nullable().optional(),
+});
+export type AdminUpdateCrmEventInput = z.infer<typeof adminUpdateCrmEventSchema>;
+
+const propertyMatchWeightsSchema = z.object({
+  budget: z.number().min(0).max(100).optional(),
+  area: z.number().min(0).max(100).optional(),
+  buyerGoal: z.number().min(0).max(100).optional(),
+  paymentStyle: z.number().min(0).max(100).optional(),
+  lifestyle: z.number().min(0).max(100).optional(),
+});
+
+const roiAssumptionDefaultsSchema = z.object({
+  conservative: z.number().min(0).max(5).optional(),
+  moderate: z.number().min(0).max(5).optional(),
+  optimistic: z.number().min(0).max(5).optional(),
+});
+
+export const adminUpdateSettingsSchema = z.object({
+  propertyMatchWeights: propertyMatchWeightsSchema.optional(),
+  roiAssumptionDefaults: roiAssumptionDefaultsSchema.optional(),
+});
+export type AdminUpdateSettingsInput = z.infer<typeof adminUpdateSettingsSchema>;
+
+export const adminAreaInputSchema = z.object({
+  preferenceKey: areaPreferenceSchema,
+  areaName: z.string().trim().min(1, "Area name is required").max(120),
+  description: z.string().trim().max(500).optional(),
+  isActive: z.boolean().optional(),
+});
+export type AdminAreaInput = z.infer<typeof adminAreaInputSchema>;
+
+export const adminPromptKeySchema = z.enum([
+  "quiz-summary",
+  "recommendation",
+  "buyer-persona",
+  "inspection-advice",
+  "roi-explainer",
+  "ask",
+]);
+export type AdminPromptKeyInput = z.infer<typeof adminPromptKeySchema>;
+
+export const adminUpdatePromptSchema = z.object({
+  body: z.string().trim().min(1, "Prompt body is required"),
+});
+export type AdminUpdatePromptInput = z.infer<typeof adminUpdatePromptSchema>;
+
+export const adminPreviewPromptSchema = z.object({
+  context: z.record(z.string(), z.unknown()),
+});
+export type AdminPreviewPromptInput = z.infer<typeof adminPreviewPromptSchema>;
+
+/**
+ * Phase 8: `POST /api/events` — client-fired analytics events. The allowed
+ * event names are intentionally a small, fixed subset of the full canonical
+ * list in docs/ARCHITECTURE.md §7 (the rest are recorded server-side
+ * automatically); this prevents a client from injecting arbitrary event
+ * names into PostHog/auditLogs.
+ */
+export const trackEventSchema = z.object({
+  event: z.enum(["inspection_started", "report_downloaded", "whatsapp_clicked"]),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+export type TrackEventInput = z.infer<typeof trackEventSchema>;

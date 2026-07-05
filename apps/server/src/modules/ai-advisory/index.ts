@@ -4,7 +4,10 @@
  * STRICT RULE: this module explains numbers the Decision Engine already
  * computed. It never performs financial arithmetic or scoring itself.
  *
- * Will own: AIProvider interface, OpenAI (primary) + Anthropic (fallback)
- * adapters, prompt loader (reads prompts/*.md), /api/ai/* endpoints.
+ * Owns: AIProvider interface (packages/shared-types), OpenAI (primary) +
+ * Gemini (fallback) adapters, prompt loader (reads prompts/*.md),
+ * `/api/ai/*` endpoints.
  */
-export {};
+export { aiAdvisoryRouter } from "./ai-advisory.routes.js";
+export { PROMPT_KEYS, getRawPrompt, savePrompt, renderPrompt } from "./prompt-loader.js";
+export { getAiAdvisoryService } from "./ai-advisory.service.js";

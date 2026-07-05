@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NextActionTrigger } from "@forth-urban/shared-types";
-import { selectNextBestAction } from "./next-best-action.js";
+import { selectHiddenCostNextAction, selectNextBestAction } from "./next-best-action.js";
 
 describe("selectNextBestAction", () => {
   it("maps homeReadinessQuizCompleted per PRODUCT_SPEC §6", () => {
@@ -35,6 +35,7 @@ describe("selectNextBestAction", () => {
       "inspectionChecklistDownloaded",
       "quizAbandoned",
       "propertyViewedTwice",
+      "inspectionBooked",
     ];
     for (const trigger of triggers) {
       const result = selectNextBestAction(trigger);
@@ -42,5 +43,23 @@ describe("selectNextBestAction", () => {
       expect(result.action).toBeTruthy();
       expect(result.reason).toBeTruthy();
     }
+  });
+});
+
+describe("selectHiddenCostNextAction", () => {
+  it("routes first-time buyers to the inspection checklist first (PRODUCT_SPEC §9)", () => {
+    const result = selectHiddenCostNextAction("firstTime");
+    expect(result.trigger).toBe("hiddenCostGuideViewed");
+    expect(result.action).toBe("View inspection checklist");
+  });
+
+  it("routes investors to the ROI projection first (PRODUCT_SPEC §9)", () => {
+    const result = selectHiddenCostNextAction("investment");
+    expect(result.action).toBe("Run ROI projection");
+  });
+
+  it("falls back to the generic combined action for other buyer goals and no profile", () => {
+    expect(selectHiddenCostNextAction("residential").action).toBe("Run ROI projection or inspect property");
+    expect(selectHiddenCostNextAction(null).action).toBe("Run ROI projection or inspect property");
   });
 });

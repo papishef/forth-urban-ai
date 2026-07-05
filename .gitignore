@@ -13,3 +13,6 @@ coverage/
 .pnpm-store/
 .next/
 *.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/

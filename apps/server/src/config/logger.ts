@@ -6,7 +6,7 @@ import { env } from "./env.js";
  * (suitable for Render/hosted log collectors) in production.
  */
 export const logger = pino({
-  level: env.NODE_ENV === "production" ? "info" : "debug",
+  level: env.LOG_LEVEL ?? (env.NODE_ENV === "production" ? "info" : "debug"),
   transport:
     env.NODE_ENV === "production"
       ? undefined

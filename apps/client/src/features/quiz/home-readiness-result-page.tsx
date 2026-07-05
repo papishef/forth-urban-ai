@@ -2,6 +2,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@forth-urban/ui";
 import type { HomeReadinessResultDTO } from "@forth-urban/shared-types";
 import { useHomeReadinessResult } from "./quiz-api";
+import { useQuizSummaryExplanation } from "../ai-advisory/ai-advisory-api";
+import { AiExplanation } from "../ai-advisory/ai-explanation";
 
 /** Readiness score + highlighted "next recommended action" result screen (PRODUCT_SPEC §16). */
 export function HomeReadinessResultPage() {
@@ -10,6 +12,7 @@ export function HomeReadinessResultPage() {
   const stateResult = location.state as HomeReadinessResultDTO | undefined;
   const { data: fetchedResult, isLoading } = useHomeReadinessResult(!stateResult);
   const result = stateResult ?? fetchedResult;
+  const explanation = useQuizSummaryExplanation(Boolean(result));
 
   if (!result && isLoading) {
     return (
@@ -46,14 +49,23 @@ export function HomeReadinessResultPage() {
           </CardContent>
         </Card>
 
+        <AiExplanation
+          isLoading={explanation.isLoading}
+          isError={explanation.isError}
+          text={explanation.data?.text}
+        />
+
         <Card className="border-2 border-[#5C4033]">
           <CardHeader>
             <CardDescription>Next recommended action</CardDescription>
             <CardTitle>{result.nextAction.action}</CardTitle>
             <CardDescription>{result.nextAction.reason}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/dashboard")}>Go to dashboard</Button>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button onClick={() => navigate("/properties/recommended")}>View matched properties</Button>
+            <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+              Go to dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>

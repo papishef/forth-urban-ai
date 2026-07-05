@@ -17,7 +17,15 @@ export const AREA_PREFERENCE_MATCH: Record<AreaPreference, string> = {
   diasporaBuyer: "An area with strong documentation clarity and virtual inspection support",
 };
 
-/** Maps a Best Abuja Area Quiz answer to a recommended area. */
-export function matchAreaForPreference(areaPreference: AreaPreference): string {
-  return AREA_PREFERENCE_MATCH[areaPreference];
+/**
+ * Maps a Best Abuja Area Quiz answer to a recommended area. `overrides` is an
+ * optional admin-managed lookup (Phase 7 `modules/areas`) that takes
+ * precedence over the illustrative defaults above, without changing this
+ * function's signature for existing callers/tests.
+ */
+export function matchAreaForPreference(
+  areaPreference: AreaPreference,
+  overrides?: Partial<Record<AreaPreference, string>>,
+): string {
+  return overrides?.[areaPreference] ?? AREA_PREFERENCE_MATCH[areaPreference];
 }

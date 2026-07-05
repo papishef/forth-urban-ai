@@ -7,7 +7,9 @@
  */
 export { User, type UserDocument } from "./user.model.js";
 export { usersRouter } from "./users.routes.js";
+export { toUserDTO } from "./user.mapper.js";
 export { Profile, type ProfileDocument } from "./profile.model.js";
 export { profilesRouter } from "./profile.routes.js";
+export { toProfileDTO } from "./profile.mapper.js";
 
 

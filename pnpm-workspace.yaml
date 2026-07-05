@@ -17,5 +17,7 @@ fetchRetryMintimeout: 15000
 fetchRetryMaxtimeout: 90000
 fetchTimeout: 300000
 allowBuilds:
+  '@scarf/scarf': false
+  core-js: true
   esbuild: true
   mongodb-memory-server: true

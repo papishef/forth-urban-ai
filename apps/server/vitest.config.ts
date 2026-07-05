@@ -13,5 +13,20 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 15 * 60_000,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      // Decision Engine functions are pure and deterministic (PRODUCT_SPEC
+      // requires the LLM never do this math), so they must be near-fully
+      // unit-tested. Phase 9 exit criteria: >=90% coverage on this module.
+      include: ["src/modules/decision-engine/**/*.ts"],
+      exclude: ["src/modules/decision-engine/**/*.test.ts", "src/modules/decision-engine/index.ts"],
+      thresholds: {
+        statements: 90,
+        branches: 90,
+        functions: 90,
+        lines: 90,
+      },
+    },
   },
 });

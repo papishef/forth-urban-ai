@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthResponse, UserDTO } from "@forth-urban/shared-types";
 import type { LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
 import { apiClient, setAccessToken } from "./api-client";
+import { identifyAnalyticsUser, resetAnalytics } from "./analytics";
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -29,6 +30,7 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 function applyAuthResponse(data: AuthResponse) {
   setAccessToken(data.tokens.accessToken);
+  identifyAnalyticsUser(data.user.id, { email: data.user.email, role: data.user.role });
   return data.user;
 }
 
@@ -95,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     onSuccess: () => {
       setAccessToken(null);
       setUser(null);
+      resetAnalytics();
       queryClient.clear();
     },
   });

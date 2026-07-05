@@ -45,8 +45,13 @@ export function AreaQuizResultPage() {
             <CardTitle>{result.nextAction.action}</CardTitle>
             <CardDescription>{result.nextAction.reason}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/dashboard")}>Go to dashboard</Button>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button onClick={() => navigate(`/inspections/book?area=${encodeURIComponent(result.recommendedArea)}`)}>
+              Book an inspection in this area
+            </Button>
+            <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+              Go to dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>

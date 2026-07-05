@@ -1,7 +1,14 @@
 /**
  * Lightweight CRM module — Phase 6.
  *
- * Will own: `crmEvents` model, lead pipeline stage/tags/notes,
- * sales-rep assignment. Intentionally NOT a full CRM (see AGENTS.md rules).
+ * Owns `crmEvents` (append-only pipeline stage/tags/notes log) and the
+ * deterministic recommended-sales-angle copy. Intentionally NOT a full CRM
+ * (no routes here — the admin CRM board is Phase 7, `/api/admin/crm`).
  */
-export {};
+export {
+  recordLeadEvent,
+  recordLeadEventWithSalesAngle,
+  getCurrentPipelineStage,
+} from "./crm.service.js";
+export { getSalesAngle } from "./sales-angle.js";
+export { CrmEvent, type CrmEventDocument } from "./crm-event.model.js";

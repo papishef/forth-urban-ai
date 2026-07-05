@@ -7,6 +7,8 @@ import type {
   QuizType,
 } from "@forth-urban/shared-types";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { sendSegmentNurtureEmail } from "../notifications/index.js";
+import { getAreaOverridesMap } from "../areas/index.js";
 import { Profile } from "../users/profile.model.js";
 import {
   READINESS_BAND_LABELS,
@@ -103,6 +105,11 @@ export async function submitHomeReadinessQuiz(
     ipAddress: meta.ip,
   });
 
+  // Phase 6: segment-based nurture email (PRODUCT_SPEC §14) — fired as soon
+  // as a lead category is established. Never throws (sendTrackedEmail
+  // swallows delivery failures), so it can't break the quiz result response.
+  await sendSegmentNurtureEmail(userId, leadCategory);
+
   return {
     score,
     band,
@@ -154,7 +161,8 @@ export async function submitAreaQuiz(
   answers: AreaQuizAnswers,
   meta: RequestMeta,
 ): Promise<AreaQuizResultDTO> {
-  const recommendedArea = matchAreaForPreference(answers.areaPreference);
+  const areaOverrides = await getAreaOverridesMap();
+  const recommendedArea = matchAreaForPreference(answers.areaPreference, areaOverrides);
   const nextAction = selectNextBestAction("areaQuizCompleted");
   const completedAt = new Date();
 
