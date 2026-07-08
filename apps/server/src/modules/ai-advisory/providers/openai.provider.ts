@@ -39,7 +39,11 @@ export class OpenAIProvider implements AIProvider {
       body: JSON.stringify({
         model: this.model,
         messages: [{ role: "system", content: systemPrompt }],
-        max_tokens: input.maxTokens ?? 300,
+        // `max_tokens` is deprecated and rejected outright by newer models
+        // (e.g. gpt-5.1) with a 400. `max_completion_tokens` is its
+        // replacement and is accepted across all current chat-completions
+        // models, so we always send that instead.
+        max_completion_tokens: input.maxTokens ?? 300,
       }),
     });
 
