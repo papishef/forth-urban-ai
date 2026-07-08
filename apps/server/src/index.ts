@@ -7,14 +7,23 @@ import { startScheduler } from "./lib/scheduler.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
 
 async function main() {
-  await connectDatabase();
-
   const app = createApp();
-  startScheduler();
 
+  // Bind the HTTP port immediately so the platform health check
+  // (GET /api/health, which doesn't touch Mongo) can succeed right away.
+  // connectDatabase() retries forever with backoff when Mongo is
+  // unreachable/misconfigured — awaiting it before listen() previously meant
+  // a bad MONGODB_URI made the server never bind its port, causing Render's
+  // health check to time out even though nothing had actually crashed.
   const server = app.listen(env.PORT, () => {
     logger.info(`Forth Urban server listening on port ${env.PORT} (${env.NODE_ENV})`);
   });
+
+  connectDatabase()
+    .then(() => startScheduler())
+    .catch((err) => {
+      logger.error({ err }, "Database connection failed permanently");
+    });
 
   const shutdown = async () => {
     logger.info("Shutting down gracefully…");
