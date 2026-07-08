@@ -79,7 +79,7 @@ export function AdminUsersPage() {
                 {isAdmin ? (
                   <div className="flex items-center gap-2">
                     <select
-                      className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-sm"
+                      className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-base outline-none focus:outline-none focus:border-[#5C4033]/60 focus:shadow-[0_0_0_3px_rgba(92,64,51,0.14),0_8px_24px_-6px_rgba(92,64,51,0.4)]"
                       value={user.role}
                       onChange={(e) =>
                         setPendingChange({
@@ -98,7 +98,7 @@ export function AdminUsersPage() {
                       ))}
                     </select>
                     <select
-                      className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-sm"
+                      className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-base outline-none focus:outline-none focus:border-[#5C4033]/60 focus:shadow-[0_0_0_3px_rgba(92,64,51,0.14),0_8px_24px_-6px_rgba(92,64,51,0.4)]"
                       value={user.status}
                       onChange={(e) =>
                         setPendingChange({
