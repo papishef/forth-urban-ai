@@ -50,6 +50,11 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const verifyPasswordSchema = z.object({
+  password: z.string().min(1, "Password is required"),
+});
+export type VerifyPasswordInput = z.infer<typeof verifyPasswordSchema>;
+
 export const googleAuthSchema = z.object({
   idToken: z.string().min(1, "Google ID token is required"),
 });
@@ -204,8 +209,8 @@ export type AiAskInput = z.infer<typeof aiAskInputSchema>;
  */
 export const inspectionBookingInputSchema = z
   .object({
-    propertyId: z.string().trim().min(1).optional(),
-    recommendedArea: z.string().trim().min(1).max(120).optional(),
+    propertyId: z.string().trim().optional(),
+    recommendedArea: z.string().trim().max(120).optional(),
     inspectionType: inspectionTypeSchema,
     preferredDate: z.string().trim().min(1, "Choose a preferred date"),
     preferredTime: z.string().trim().min(1, "Choose a preferred time"),
@@ -213,7 +218,7 @@ export const inspectionBookingInputSchema = z
     wantsDocsBeforeInspection: z.boolean().default(false),
     whatsappNumber: z.string().trim().min(5, "Enter a valid WhatsApp number").max(20).optional(),
   })
-  .refine((data) => Boolean(data.propertyId ?? data.recommendedArea), {
+  .refine((data) => Boolean(data.propertyId) || Boolean(data.recommendedArea), {
     message: "Select a property or a recommended area",
     path: ["propertyId"],
   });
@@ -292,6 +297,8 @@ export const adminPropertyInputSchema = z.object({
   hiddenCostRules: z.array(adminHiddenCostRuleSchema).default([]),
   roiAssumptions: adminRoiAssumptionsSchema,
   media: adminPropertyMediaSchema,
+  features: z.array(z.string().trim().min(1, "Feature cannot be empty").max(80)).default([]),
+  description: z.string().trim().max(2000, "Keep the description under 2000 characters").nullable().optional(),
   isActive: z.boolean().default(true),
 });
 export type AdminPropertyInput = z.infer<typeof adminPropertyInputSchema>;
@@ -307,6 +314,13 @@ export const adminMediaUploadSchema = z.object({
   base64Data: z.string().trim().min(1, "File data is required"),
 });
 export type AdminMediaUploadInput = z.infer<typeof adminMediaUploadSchema>;
+
+/** Removes a single media item — the matching Cloudinary asset is destroyed alongside the property reference. */
+export const adminMediaDeleteSchema = z.object({
+  field: z.enum(["photos", "videos", "brochureUrl", "titleDocuments"]),
+  url: z.string().trim().min(1, "URL is required"),
+});
+export type AdminMediaDeleteInput = z.infer<typeof adminMediaDeleteSchema>;
 
 export const inspectionBookingStatusSchema = z.enum(["pending", "confirmed", "completed", "cancelled"]);
 export type InspectionBookingStatusInput = z.infer<typeof inspectionBookingStatusSchema>;

@@ -27,7 +27,19 @@ export interface UpsertAreaInput {
   isActive?: boolean;
 }
 
-/** Creates or updates the area mapped to a given preference key (one row per key). */
+/**
+ * Creates or updates the area mapped to a given preference key (one row per
+ * key — `preferenceKey` has a unique index). Explicitly passes
+ * `withDeleted: true` and resets `deletedAt: null` in the update: without
+ * this, the base-schema plugin's soft-delete query hook would silently add
+ * `deletedAt: null` to the *filter* (but not the update), so re-saving a key
+ * previously removed via "Reset" (which soft-deletes, not hard-deletes) would
+ * find no matching row and attempt to *insert* a second document with the
+ * same `preferenceKey` — violating the unique index with a duplicate-key
+ * error (surfaced to the client as a bare 500). Matching on the bare
+ * `preferenceKey` (any deletedAt state) and explicitly reviving the row
+ * fixes both the fresh-insert and the restore-after-reset case.
+ */
 export async function upsertArea(input: UpsertAreaInput): Promise<AreaDTO> {
   const doc = await Area.findOneAndUpdate(
     { preferenceKey: input.preferenceKey },
@@ -36,8 +48,9 @@ export async function upsertArea(input: UpsertAreaInput): Promise<AreaDTO> {
       areaName: input.areaName,
       description: input.description ?? "",
       isActive: input.isActive ?? true,
+      deletedAt: null,
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
+    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true, withDeleted: true },
   );
   return toAreaDTO(doc);
 }

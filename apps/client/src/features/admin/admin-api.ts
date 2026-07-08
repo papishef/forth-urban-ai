@@ -17,6 +17,8 @@ import type {
 } from "@forth-urban/shared-types";
 import type {
   AdminAreaInput,
+  AdminMediaDeleteInput,
+  AdminMediaUploadInput,
   AdminPreviewPromptInput,
   AdminPropertyInput,
   AdminPropertyUpdateInput,
@@ -54,6 +56,11 @@ async function patch<T>(path: string, body?: unknown): Promise<T> {
   return res.data.data as T;
 }
 
+async function del<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiClient.delete<ApiEnvelope<T>>(path, { data: body });
+  return res.data.data as T;
+}
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -74,6 +81,14 @@ export function useAdminUpdateUser() {
     mutationFn: ({ id, role, status }: { id: string; role?: UserRole; status?: UserStatus }) =>
       patch<AdminUserDTO>(`/admin/users/${id}`, { role, status }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+}
+
+// Re-auth gate for the sensitive user role/status change on the admin Users
+// tab — confirms the caller's own password before the update mutation runs.
+export function useVerifyPassword() {
+  return useMutation({
+    mutationFn: (password: string) => post<null>("/auth/password/verify", { password }),
   });
 }
 
@@ -111,6 +126,24 @@ export function useAdminDeleteProperty() {
     mutationFn: async (id: string) => {
       await apiClient.delete(`/admin/properties/${id}`);
     },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] }),
+  });
+}
+
+export function useAdminUploadPropertyMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminMediaUploadInput }) =>
+      post<PropertyDTO>(`/admin/properties/${id}/media`, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] }),
+  });
+}
+
+export function useAdminDeletePropertyMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminMediaDeleteInput }) =>
+      del<PropertyDTO>(`/admin/properties/${id}/media`, input),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] }),
   });
 }

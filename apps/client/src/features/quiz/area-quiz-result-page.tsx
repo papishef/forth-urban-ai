@@ -1,5 +1,5 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@forth-urban/ui";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { BuildingLoader, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Logo } from "@forth-urban/ui";
 import type { AreaQuizResultDTO } from "@forth-urban/shared-types";
 import { useAreaQuizResult } from "./quiz-api";
 
@@ -12,8 +12,8 @@ export function AreaQuizResultPage() {
 
   if (!result && isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FFECE4] px-4 py-10 text-[#181818]/60">
-        Loading your result…
+      <div className="flex min-h-screen items-center justify-center bg-[#FFECE4] px-4 py-10">
+        <BuildingLoader size="lg" label="Loading your result…" />
       </div>
     );
   }
@@ -32,6 +32,9 @@ export function AreaQuizResultPage() {
   return (
     <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-6">
+        <Link to="/dashboard">
+          <Logo className="h-7" />
+        </Link>
         <Card>
           <CardHeader>
             <CardDescription>Your recommended area</CardDescription>

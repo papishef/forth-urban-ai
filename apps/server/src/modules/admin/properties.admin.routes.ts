@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { adminMediaUploadSchema, adminPropertyInputSchema, adminPropertyUpdateSchema } from "@forth-urban/validation";
+import {
+  adminMediaDeleteSchema,
+  adminMediaUploadSchema,
+  adminPropertyInputSchema,
+  adminPropertyUpdateSchema,
+} from "@forth-urban/validation";
 import type { PaginatedResultDTO, PropertyDTO } from "@forth-urban/shared-types";
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
-import { uploadMedia } from "../../lib/cloudinary.util.js";
+import { deleteMediaByUrl, uploadMedia, type MediaKind } from "../../lib/cloudinary.util.js";
 import { Property, toPropertyDTO } from "../properties/index.js";
 
 /**
@@ -161,6 +166,54 @@ propertiesAdminRouter.post("/:id/media", validateBody(adminMediaUploadSchema), a
     });
 
     const body: ApiEnvelope = { success: true, message: "Media uploaded", data: toPropertyDTO(property), errors: null };
+    res.json(body);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Media removal — deletes the asset from Cloudinary storage (best-effort;
+ * see cloudinary.util.ts) and removes its URL from the property document.
+ * Used by the admin edit form so photos/videos/documents staged before this
+ * feature existed can still be cleaned up without recreating the property.
+ */
+propertiesAdminRouter.delete("/:id/media", validateBody(adminMediaDeleteSchema), async (req, res, next) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) throw new ApiError(404, "Property not found");
+
+    const { field, url } = req.body as {
+      field: "photos" | "videos" | "brochureUrl" | "titleDocuments";
+      url: string;
+    };
+    const media = property.media!;
+
+    if (field === "brochureUrl") {
+      if (media.brochureUrl !== url) throw new ApiError(404, "Media not found on this property");
+      media.brochureUrl = null;
+    } else {
+      const list = media[field] as string[];
+      const index = list.indexOf(url);
+      if (index === -1) throw new ApiError(404, "Media not found on this property");
+      list.splice(index, 1);
+    }
+    property.set("media", media);
+    await property.save();
+
+    const kind: MediaKind = field === "videos" ? "video" : field === "photos" ? "image" : "document";
+    await deleteMediaByUrl(kind, url);
+
+    await recordAuditLog({
+      actorId: req.auth!.sub,
+      actorType: "admin",
+      action: "admin.property.media_deleted",
+      targetType: "Property",
+      targetId: property._id.toString(),
+      metadata: { field },
+    });
+
+    const body: ApiEnvelope = { success: true, message: "Media removed", data: toPropertyDTO(property), errors: null };
     res.json(body);
   } catch (err) {
     next(err);

@@ -229,6 +229,11 @@ export const openApiDocument = {
         params: [{ name: "id" }],
         successStatus: 201,
       }),
+      delete: op("Remove a property media item (deletes from Cloudinary too)", ["Admin"], {
+        auth: "admin",
+        body: true,
+        params: [{ name: "id" }],
+      }),
     },
     "/admin/inspections": { get: op("List inspection bookings", ["Admin"], { auth: "admin" }) },
     "/admin/inspections/{id}": {

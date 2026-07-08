@@ -75,3 +75,45 @@ export async function uploadMedia(
     stream.end(buffer);
   });
 }
+
+/**
+ * Recovers a Cloudinary `public_id` from a delivered `secure_url`, e.g.
+ * `https://res.cloudinary.com/demo/image/upload/v123/properties/abc/photo.jpg`
+ * -> `properties/abc/photo`. Image/video public_ids exclude the file
+ * extension (Cloudinary appends it on delivery); raw (document) public_ids
+ * already include it, so the extension is only stripped for non-documents.
+ */
+export function extractPublicIdFromUrl(url: string, kind: MediaKind): string | null {
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.+)$/);
+  if (!match || !match[1]) return null;
+  let publicId = match[1];
+  if (kind !== "document") {
+    const lastDot = publicId.lastIndexOf(".");
+    if (lastDot > -1) publicId = publicId.slice(0, lastDot);
+  }
+  return publicId;
+}
+
+/**
+ * Best-effort delete of a previously-uploaded asset by its delivered URL.
+ * Never throws — a misconfigured Cloudinary env or an already-gone asset
+ * should not block removing the (now-broken) reference from the property
+ * document, which is the part the admin actually cares about.
+ */
+export async function deleteMediaByUrl(kind: MediaKind, url: string): Promise<void> {
+  try {
+    ensureConfigured();
+  } catch {
+    return;
+  }
+
+  const publicId = extractPublicIdFromUrl(url, kind);
+  if (!publicId) return;
+
+  const resourceType = kind === "document" ? "raw" : kind === "video" ? "video" : "image";
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  } catch {
+    // best-effort only — see doc comment above.
+  }
+}

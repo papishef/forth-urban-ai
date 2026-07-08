@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { inspectionBookingInputSchema, type InspectionBookingInput } from "@forth-urban/validation";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from "@forth-urban/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Logo } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { trackClientEvent } from "../../lib/analytics";
 import { useBookInspection } from "./inspections-api";
@@ -58,6 +58,9 @@ export function InspectionBookingPage() {
     return (
       <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
         <div className="mx-auto flex max-w-xl flex-col gap-6">
+          <Link to="/dashboard">
+            <Logo className="h-7" />
+          </Link>
           <Card>
             <CardHeader>
               <CardDescription>Inspection booked</CardDescription>
@@ -107,6 +110,9 @@ export function InspectionBookingPage() {
   return (
     <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-6">
+        <Link to="/dashboard">
+          <Logo className="h-7" />
+        </Link>
         <header>
           <p className="font-heading text-2xl font-semibold text-[#181818]">Book an inspection</p>
           <p className="text-sm text-[#181818]/60">

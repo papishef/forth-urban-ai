@@ -67,4 +67,34 @@ describe("admin properties routes", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(404);
   });
+
+  it("removes a media item from a property", async () => {
+    const app = createApp();
+    const { token } = await registerAdmin(app);
+
+    const photoUrl = "https://res.cloudinary.com/demo/image/upload/v1700000000/properties/abc/photo1.jpg";
+    const createRes = await request(app)
+      .post("/api/admin/properties")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        ...validPropertyInput,
+        media: { photos: [photoUrl], videos: [], googleMapsUrl: null, brochureUrl: null, titleDocuments: [] },
+      });
+    expect(createRes.status).toBe(201);
+    const propertyId = createRes.body.data.id as string;
+    expect(createRes.body.data.media.photos).toEqual([photoUrl]);
+
+    const deleteRes = await request(app)
+      .delete(`/api/admin/properties/${propertyId}/media`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ field: "photos", url: photoUrl });
+    expect(deleteRes.status).toBe(200);
+    expect(deleteRes.body.data.media.photos).toEqual([]);
+
+    const missingRes = await request(app)
+      .delete(`/api/admin/properties/${propertyId}/media`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ field: "photos", url: photoUrl });
+    expect(missingRes.status).toBe(404);
+  });
 });

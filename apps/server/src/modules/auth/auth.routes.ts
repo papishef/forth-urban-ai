@@ -7,6 +7,7 @@ import {
   otpVerifySchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyPasswordSchema,
 } from "@forth-urban/validation";
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -131,6 +132,19 @@ authRouter.post("/password/reset", validateBody(resetPasswordSchema), async (req
     const { email, token, password } = req.body;
     await authService.resetPassword(email, token, password);
     const body: ApiEnvelope = { success: true, message: "Password updated", data: null, errors: null };
+    res.json(body);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Re-auth gate for sensitive in-app actions (e.g. changing another user's
+// role/status from the admin Users tab) — confirms the caller still knows
+// their own password before the calling code proceeds with the mutation.
+authRouter.post("/password/verify", requireAuth, validateBody(verifyPasswordSchema), async (req, res, next) => {
+  try {
+    await authService.verifyPassword(req.auth!.sub, req.body.password);
+    const body: ApiEnvelope = { success: true, message: "Password verified", data: null, errors: null };
     res.json(body);
   } catch (err) {
     next(err);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app.js";
-import { registerAdmin, registerUser } from "./test-helpers.js";
+import { registerAdmin, registerSales, registerUser } from "./test-helpers.js";
 
 describe("admin users routes", () => {
   it("rejects admin routes without a token", async () => {
@@ -66,5 +66,20 @@ describe("admin users routes", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.role).toBe("sales");
     expect(res.body.data.status).toBe("suspended");
+  });
+
+  it("lets a sales user list users (read-only) but rejects their attempt to change role/status", async () => {
+    const app = createApp();
+    const { token } = await registerSales(app);
+    const { userId } = await registerUser(app, { email: "buyer5@example.com" });
+
+    const listRes = await request(app).get("/api/admin/users").set("Authorization", `Bearer ${token}`);
+    expect(listRes.status).toBe(200);
+
+    const patchRes = await request(app)
+      .patch(`/api/admin/users/${userId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ role: "admin" });
+    expect(patchRes.status).toBe(403);
   });
 });

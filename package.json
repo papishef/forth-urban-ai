@@ -39,5 +39,9 @@
     "*.{ts,tsx,js,jsx,json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^0.469.0"
   }
 }

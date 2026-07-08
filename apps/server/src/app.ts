@@ -48,7 +48,14 @@ export function createApp(): Express {
       legacyHeaders: false,
     }),
   );
-  app.use(express.json());
+  // Admin property media uploads send base64-encoded file data as JSON
+  // (see properties.admin.routes.ts) instead of multipart/form-data, so the
+  // body-parser limit needs enough headroom for a base64-inflated photo
+  // (~1.34x the raw file size) — express's 100kb default silently rejected
+  // every photo upload with a 413 before it ever reached our route/size
+  // validation in cloudinary.util.ts.
+  app.use(express.json({ limit: "20mb" }));
+
   app.use(cookieParser());
   app.use(passport.initialize());
   app.use(

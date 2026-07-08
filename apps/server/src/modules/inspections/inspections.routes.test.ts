@@ -141,6 +141,20 @@ describe("inspections routes", () => {
     expect(res.body.data.propertyId).toBeNull();
   });
 
+  it("books an inspection by recommendedArea when propertyId is submitted as an empty string (client hidden-input case)", async () => {
+    const app = createApp();
+    const token = await registerAndGetToken(app);
+
+    const res = await request(app)
+      .post("/api/inspections")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ ...validBookingInput, propertyId: "", recommendedArea: "Lugbe" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.recommendedArea).toBe("Lugbe");
+    expect(res.body.data.propertyId).toBeNull();
+  });
+
   it("lists the user's own bookings via GET /me, most recent first", async () => {
     const app = createApp();
     const token = await registerAndGetToken(app);

@@ -63,7 +63,7 @@ export async function bookInspection(userId: string, input: InspectionBookingInp
 
   const booking = await InspectionBooking.create({
     userId,
-    propertyId: input.propertyId ?? null,
+    propertyId: input.propertyId || null,
     recommendedArea: input.recommendedArea ?? null,
     inspectionType: input.inspectionType,
     preferredDate: new Date(input.preferredDate),
@@ -101,7 +101,7 @@ export async function bookInspection(userId: string, input: InspectionBookingInp
       pipelineStage: "inspectionScheduled",
       payload: {
         bookingId: booking._id.toString(),
-        propertyId: input.propertyId ?? null,
+        propertyId: input.propertyId || null,
         recommendedArea: input.recommendedArea ?? null,
         inspectionType: input.inspectionType,
         preferredDate: input.preferredDate,

@@ -19,6 +19,8 @@ export function toPropertyListItemDTO(property: PropertyDocument): PropertyListI
     developmentStatus: property.developmentStatus,
     bestFitBuyerTypes: property.bestFitBuyerTypes,
     coverPhoto: property.media!.photos?.[0] ?? null,
+    photos: property.media!.photos ?? [],
+    features: property.features ?? [],
   };
 }
 
@@ -57,6 +59,7 @@ export function toPropertyDTO(property: PropertyDocument): PropertyDTO {
       brochureUrl: media.brochureUrl ?? null,
       titleDocuments: media.titleDocuments ?? [],
     },
+    description: property.description ?? null,
     isActive: property.isActive,
   };
 }

@@ -1,5 +1,6 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@forth-urban/ui";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Badge, BuildingLoader, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Logo } from "@forth-urban/ui";
+import { Sparkles } from "lucide-react";
 import { trackClientEvent } from "../../lib/analytics";
 import { usePropertyDetail } from "./properties-api";
 
@@ -24,8 +25,8 @@ export function PropertyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FFECE4] px-4 py-10 text-[#181818]/60">
-        Loading property…
+      <div className="flex min-h-screen items-center justify-center bg-[#FFECE4] px-4 py-10">
+        <BuildingLoader size="lg" label="Loading property…" />
       </div>
     );
   }
@@ -46,6 +47,14 @@ export function PropertyDetailPage() {
   return (
     <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+            ← Back
+          </Button>
+          <Link to="/dashboard">
+            <Logo className="h-7" />
+          </Link>
+        </div>
         {property.media.photos.length > 0 && (
           <img
             src={property.media.photos[0]}
@@ -61,6 +70,16 @@ export function PropertyDetailPage() {
             <CardDescription>{formatNaira(property.pricePerPlot)} per plot</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm text-[#181818]/80">
+            {property.features.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {property.features.map((feature) => (
+                  <Badge key={feature} variant="premium">
+                    <Sparkles className="h-3 w-3" />
+                    {feature}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p>Plot sizes: {property.plotSizes.join(", ")}</p>
             <p>Title type: {property.titleType}</p>
             <p>Documentation status: {property.documentationStatus}</p>
@@ -75,6 +94,11 @@ export function PropertyDetailPage() {
                 .filter(Boolean)
                 .join(" & ") || "Not available"}
             </p>
+            {property.description && (
+              <p className="mt-2 whitespace-pre-line rounded-xl border border-white/50 bg-white/40 p-4 leading-relaxed text-[#181818]/80">
+                {property.description}
+              </p>
+            )}
           </CardContent>
         </Card>
 

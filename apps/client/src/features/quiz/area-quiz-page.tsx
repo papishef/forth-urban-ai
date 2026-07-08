@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, Card, CardContent, CardHeader, CardTitle, Progress } from "@forth-urban/ui";
+import { Link, useNavigate } from "react-router-dom";
+import { Button, Card, CardContent, CardHeader, CardTitle, Progress, Logo } from "@forth-urban/ui";
 import type { AreaPreference } from "@forth-urban/validation";
 import { useStartAreaQuiz, useSubmitAreaQuiz } from "./quiz-api";
 
@@ -38,6 +38,9 @@ export function AreaQuizPage() {
   return (
     <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-6">
+        <Link to="/dashboard">
+          <Logo className="h-7" />
+        </Link>
         <div>
           <p className="mb-2 text-sm font-medium text-[#181818]/60">Step 1 of 1</p>
           <Progress value={100} />

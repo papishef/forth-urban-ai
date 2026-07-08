@@ -14,25 +14,35 @@ import { promptsAdminRouter } from "./prompts.admin.routes.js";
 /**
  * Admin module — Phase 7 (docs/IMPLEMENTATION_PLAN.md#phase-7--admin-dashboard).
  *
- * Every route here is gated to `role=admin` (applied once, at the router
- * root, rather than per sub-router) — see docs/ARCHITECTURE.md#6-api-surface
- * for the full `/api/admin/*` surface this implements: users, properties
- * (with Cloudinary uploads), quiz analytics, inspection bookings, CRM board,
- * email campaigns, ROI assumptions/property-matching-weight settings, area
- * management, and the AI prompt editor.
+ * `requireAuth` applies to every route here, at the router root. Per-domain
+ * role gating is applied per sub-router: `/users` additionally allows
+ * `role=sales` (read-only list/detail — the PATCH handler itself further
+ * restricts role/status changes to `role=admin` only). `/inspections` and
+ * `/crm` also allow `role=sales` with full read/write, since managing
+ * inspection bookings (status, `assignedSalesRep`) and the CRM board
+ * (pipeline stage, notes, `salesRepId`) is the actual day-to-day job of a
+ * sales rep. Every other sub-router (properties, email campaigns,
+ * analytics, logs, settings, areas, prompts) stays `role=admin`-only —
+ * these are governance/config/bulk-marketing surfaces, not sales work. See
+ * docs/ARCHITECTURE.md#6-api-surface for the full `/api/admin/*` surface
+ * this implements: users, properties (with Cloudinary uploads), quiz
+ * analytics, inspection bookings, CRM board, email campaigns, ROI
+ * assumptions/property-matching-weight settings, area management, and the
+ * AI prompt editor.
  */
 export const adminRouter: Router = Router();
 
-adminRouter.use(requireAuth, requireRole("admin"));
+adminRouter.use(requireAuth);
 
-adminRouter.use("/users", usersAdminRouter);
-adminRouter.use("/properties", propertiesAdminRouter);
-adminRouter.use("/inspections", inspectionsAdminRouter);
-adminRouter.use("/crm", crmAdminRouter);
-adminRouter.use("/email-campaigns", emailCampaignsAdminRouter);
-adminRouter.use("/analytics", analyticsAdminRouter);
-adminRouter.use("/logs", logsAdminRouter);
-adminRouter.use("/settings", settingsAdminRouter);
-adminRouter.use("/areas", areasAdminRouter);
-adminRouter.use("/prompts", promptsAdminRouter);
+adminRouter.use("/users", requireRole("admin", "sales"), usersAdminRouter);
+adminRouter.use("/properties", requireRole("admin"), propertiesAdminRouter);
+adminRouter.use("/inspections", requireRole("admin", "sales"), inspectionsAdminRouter);
+adminRouter.use("/crm", requireRole("admin", "sales"), crmAdminRouter);
+adminRouter.use("/email-campaigns", requireRole("admin"), emailCampaignsAdminRouter);
+adminRouter.use("/analytics", requireRole("admin"), analyticsAdminRouter);
+adminRouter.use("/logs", requireRole("admin"), logsAdminRouter);
+adminRouter.use("/settings", requireRole("admin"), settingsAdminRouter);
+adminRouter.use("/areas", requireRole("admin"), areasAdminRouter);
+adminRouter.use("/prompts", requireRole("admin"), promptsAdminRouter);
+
 

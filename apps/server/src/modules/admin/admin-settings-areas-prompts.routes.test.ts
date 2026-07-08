@@ -53,6 +53,38 @@ describe("admin areas routes", () => {
     const deleteRes = await request(app).delete(`/api/admin/areas/${areaId}`).set("Authorization", `Bearer ${token}`);
     expect(deleteRes.status).toBe(200);
   });
+
+  it("allows re-saving a preference key after it was soft-deleted (Reset then Save again)", async () => {
+    const app = createApp();
+    const { token } = await registerAdmin(app);
+
+    const firstSave = await request(app)
+      .post("/api/admin/areas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ preferenceKey: "premiumLiving", areaName: "Guzape", description: "Premium quiet area" });
+    expect(firstSave.status).toBe(200);
+    const firstAreaId = firstSave.body.data.id as string;
+
+    const resetRes = await request(app)
+      .delete(`/api/admin/areas/${firstAreaId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(resetRes.status).toBe(200);
+
+    // Re-saving the same preferenceKey after a soft-delete must not 500 with
+    // a duplicate-key error (see area.service.ts upsertArea doc comment).
+    const secondSave = await request(app)
+      .post("/api/admin/areas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ preferenceKey: "premiumLiving", areaName: "Guzape II", description: "Premium quiet area, updated" });
+    expect(secondSave.status).toBe(200);
+    expect(secondSave.body.data.areaName).toBe("Guzape II");
+
+    const listRes = await request(app).get("/api/admin/areas").set("Authorization", `Bearer ${token}`);
+    const premiumLivingRows = listRes.body.data.filter(
+      (a: { preferenceKey: string }) => a.preferenceKey === "premiumLiving",
+    );
+    expect(premiumLivingRows).toHaveLength(1);
+  });
 });
 
 describe("admin prompts routes", () => {

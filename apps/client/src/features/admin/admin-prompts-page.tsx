@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { AdminPromptDTO } from "@forth-urban/shared-types";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
+import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import { useAdminPreviewPrompt, useAdminPrompts, useAdminUpdatePrompt } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 
@@ -81,7 +81,7 @@ export function AdminPromptsPage() {
             <CardTitle>Prompt files</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+            {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
             {data?.map((prompt) => (
               <button
                 key={prompt.key}

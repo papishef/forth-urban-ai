@@ -174,6 +174,10 @@ export interface PropertyListItemDTO {
   developmentStatus: DevelopmentStatus;
   bestFitBuyerTypes: string[];
   coverPhoto: string | null;
+  /** All property photos (Cloudinary URLs) — used for gallery/carousel rendering on recommendation & list cards. */
+  photos: string[];
+  /** Short highlight tags (e.g. "Gated estate", "C of O ready") — rendered as premium pills on the client. */
+  features: string[];
 }
 
 export interface PropertyDTO extends PropertyListItemDTO {
@@ -184,6 +188,8 @@ export interface PropertyDTO extends PropertyListItemDTO {
   hiddenCostRules: PropertyHiddenCostRuleDTO[];
   roiAssumptions: PropertyRoiAssumptionsDTO;
   media: PropertyMediaDTO;
+  /** Free-form additional notes about the property, admin-authored. */
+  description: string | null;
   isActive: boolean;
 }
 

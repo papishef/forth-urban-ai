@@ -74,6 +74,13 @@ usersAdminRouter.get("/:id", async (req, res, next) => {
 
 usersAdminRouter.patch("/:id", validateBody(adminUpdateUserSchema), async (req, res, next) => {
   try {
+    // Reachable by role=sales for the GET routes above (read-only), but a
+    // role/status change is admin-only — enforced here since the router-
+    // level gate in modules/admin/index.ts allows both roles into `/users`.
+    if (req.auth!.role !== "admin") {
+      throw new ApiError(403, "Only admins can change a user's role or status");
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) throw new ApiError(404, "User not found");
 

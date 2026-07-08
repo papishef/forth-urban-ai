@@ -42,6 +42,7 @@ const propertyListItem = {
   developmentStatus: "serviced",
   bestFitBuyerTypes: ["firstTime", "investment"],
   coverPhoto: null,
+  features: ["Gated estate", "C of O ready"],
 };
 
 const propertyDetail = {
@@ -56,6 +57,7 @@ const propertyDetail = {
   ],
   roiAssumptions: { conservative: 0.05, moderate: 0.1, optimistic: 0.15 },
   media: { photos: [], videos: [], googleMapsUrl: null, brochureUrl: null, titleDocuments: [] },
+  description: null,
   isActive: true,
 };
 

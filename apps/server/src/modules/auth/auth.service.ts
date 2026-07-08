@@ -115,6 +115,24 @@ export async function login(input: LoginInput, meta: RequestMeta) {
   return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
 }
 
+/**
+ * Re-authenticates the currently signed-in user with their password —
+ * used to gate sensitive in-app actions (e.g. an admin changing another
+ * user's role/status) behind a fresh password confirmation, independent
+ * of whether their access token is still valid.
+ */
+export async function verifyPassword(userId: string, password: string): Promise<void> {
+  const user = await User.findById(userId).select("+passwordHash");
+  if (!user || !user.passwordHash) {
+    throw new ApiError(401, "Incorrect password");
+  }
+
+  const valid = await compareSecret(password, user.passwordHash);
+  if (!valid) {
+    throw new ApiError(401, "Incorrect password");
+  }
+}
+
 /** Requests an OTP for email verification or passwordless login (Resend email). */
 export async function requestOtp(email: string): Promise<void> {
   const code = generateNumericCode(6);

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
+import { BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import { useAdminEmailCampaigns } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 
@@ -12,7 +12,7 @@ export function AdminEmailCampaignsPage() {
           <CardTitle>Campaign performance</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+          {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
           {data && data.length === 0 && <p className="text-sm text-[#181818]/60">No campaigns sent yet.</p>}
           {data && data.length > 0 && (
             <table className="w-full text-left text-sm">

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@forth-urban/ui";
+import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input } from "@forth-urban/ui";
 import { useAdminLogs } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 
@@ -26,7 +26,7 @@ export function AdminLogsPage() {
           <CardTitle>{data ? `${data.total} entries` : "Audit logs"}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+          {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
           {data?.items.map((log) => (
             <div key={log.id} className="rounded-lg border border-[#181818]/10 px-3 py-2 text-sm">
               <p className="font-medium text-[#181818]">

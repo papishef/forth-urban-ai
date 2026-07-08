@@ -19,9 +19,9 @@ interface AuthContextValue {
   user: UserDTO | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (input: LoginInput) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
-  verifyOtp: (input: OtpVerifyInput) => Promise<void>;
+  login: (input: LoginInput) => Promise<UserDTO>;
+  register: (input: RegisterInput) => Promise<UserDTO>;
+  verifyOtp: (input: OtpVerifyInput) => Promise<UserDTO>;
   requestOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -63,25 +63,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (input: LoginInput) => {
       const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/login", input);
-      return res.data.data!;
+      return applyAuthResponse(res.data.data!);
     },
-    onSuccess: (data) => setUser(applyAuthResponse(data)),
+    onSuccess: (user) => setUser(user),
   });
 
   const registerMutation = useMutation({
     mutationFn: async (input: RegisterInput) => {
       const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/register", input);
-      return res.data.data!;
+      return applyAuthResponse(res.data.data!);
     },
-    onSuccess: (data) => setUser(applyAuthResponse(data)),
+    onSuccess: (user) => setUser(user),
   });
 
   const verifyOtpMutation = useMutation({
     mutationFn: async (input: OtpVerifyInput) => {
       const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/otp/verify", input);
-      return res.data.data!;
+      return applyAuthResponse(res.data.data!);
     },
-    onSuccess: (data) => setUser(applyAuthResponse(data)),
+    onSuccess: (user) => setUser(user),
   });
 
   const requestOtpMutation = useMutation({
@@ -106,9 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     isAuthenticated: user !== null,
-    login: (input) => loginMutation.mutateAsync(input).then(() => undefined),
-    register: (input) => registerMutation.mutateAsync(input).then(() => undefined),
-    verifyOtp: (input) => verifyOtpMutation.mutateAsync(input).then(() => undefined),
+    login: (input) => loginMutation.mutateAsync(input),
+    register: (input) => registerMutation.mutateAsync(input),
+    verifyOtp: (input) => verifyOtpMutation.mutateAsync(input),
     requestOtp: (email) => requestOtpMutation.mutateAsync(email).then(() => undefined),
     logout: () => logoutMutation.mutateAsync(),
   };

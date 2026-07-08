@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
+import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import type { InspectionBookingStatus } from "@forth-urban/shared-types";
 import { useAdminInspections, useAdminUpdateInspection } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
@@ -37,7 +37,7 @@ export function AdminInspectionsPage() {
           <CardTitle>{data ? `${data.total} bookings` : "Bookings"}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+          {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
           {data?.items.map((booking) => (
             <div
               key={booking.id}

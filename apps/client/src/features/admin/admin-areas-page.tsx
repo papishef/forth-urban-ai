@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@forth-urban/ui";
+import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@forth-urban/ui";
 import type { AreaPreference } from "@forth-urban/validation";
 import { useAdminAreas, useAdminDeleteArea, useAdminUpsertArea } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
@@ -29,7 +29,7 @@ export function AdminAreasPage() {
           <CardTitle>Preference → area mapping</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+          {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
           {PREFERENCE_KEYS.map((key) => {
             const existing = areaByKey.get(key);
             const draft = drafts[key] ?? {
@@ -63,6 +63,7 @@ export function AdminAreasPage() {
                 <div className="flex gap-2">
                   <Button
                     disabled={!draft.areaName}
+                    isLoading={upsertArea.isPending && upsertArea.variables?.preferenceKey === key}
                     onClick={() =>
                       upsertArea.mutate({ preferenceKey: key, areaName: draft.areaName, description: draft.description })
                     }
@@ -70,7 +71,11 @@ export function AdminAreasPage() {
                     Save
                   </Button>
                   {existing && (
-                    <Button variant="secondary" onClick={() => deleteArea.mutate(existing.id)}>
+                    <Button
+                      variant="secondary"
+                      isLoading={deleteArea.isPending && deleteArea.variables === existing.id}
+                      onClick={() => deleteArea.mutate(existing.id)}
+                    >
                       Reset
                     </Button>
                   )}

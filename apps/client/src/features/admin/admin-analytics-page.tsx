@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
+import { BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import { useAdminQuizAnalytics } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 
@@ -22,7 +22,7 @@ export function AdminAnalyticsPage() {
   if (isLoading || !data) {
     return (
       <AdminLayout title="Analytics">
-        <p className="text-sm text-[#181818]/60">Loading…</p>
+        <BuildingLoader size="md" label="Loading analytics…" className="py-16" />
       </AdminLayout>
     );
   }

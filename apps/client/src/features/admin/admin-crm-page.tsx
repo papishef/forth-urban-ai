@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
+import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import type { PipelineStage } from "@forth-urban/shared-types";
 import { useAdminCrmBoard, useAdminUpdateCrmEvent } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
@@ -22,7 +22,7 @@ export function AdminCrmPage() {
 
   return (
     <AdminLayout title="CRM">
-      {isLoading && <p className="text-sm text-[#181818]/60">Loading…</p>}
+      {isLoading && <BuildingLoader size="sm" label="Loading…" className="py-6" />}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {STAGES.map((stage) => {
           const leads = data?.filter((lead) => lead.pipelineStage === stage) ?? [];

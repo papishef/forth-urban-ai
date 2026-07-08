@@ -16,7 +16,7 @@ const envSchema = z.object({
   CLIENT_URL: z.string().default("http://localhost:5173"),
   COOKIE_DOMAIN: z.string().default("localhost"),
 
-  MONGODB_URI: z.string().default("mongodb://127.0.0.1:27017/forth-urban"),
+  MONGODB_URI: z.string().default("mongodb://127.0.0.1:27017/forth-urban-db"),
   //MONGODB USER:PASS - forth-urban:2V5iZVSBMEcdMuDL
 
   JWT_ACCESS_SECRET: z.string().default("dev-access-secret-change-me"),
@@ -70,7 +70,15 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-export const env: Env = envSchema.parse(process.env);
+// Treat blank env vars (e.g. `LOG_LEVEL=` left empty in a .env template) as
+// unset rather than as an invalid empty-string value — otherwise optional
+// enum fields like LOG_LEVEL fail validation on "" instead of falling back
+// to their default/undefined.
+const rawEnv = Object.fromEntries(
+  Object.entries(process.env).map(([key, value]) => [key, value === "" ? undefined : value]),
+);
+
+export const env: Env = envSchema.parse(rawEnv);
 
 // Fail fast in production if secrets were left at their (insecure) dev defaults.
 if (env.NODE_ENV === "production") {

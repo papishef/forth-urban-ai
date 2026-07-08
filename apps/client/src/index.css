@@ -1,5 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap");
 @import "tailwindcss";
+@source "../../../packages/ui/src";
+
 
 /*
  * Fixed design tokens per AGENTS.md rule #7 — do not change without updating
@@ -10,8 +12,20 @@
   --color-background: #ffece4;
   --color-brown: #5c4033;
   --color-ink: #181818;
+  --color-gold: #d4af37;
+  --color-gold-hover: #b8972e;
   --font-heading: "Manrope", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/40 backdrop-blur-md border border-white/40 shadow-xl shadow-brown/5;
+  }
+  
+  .glass-panel {
+    @apply bg-white/20 backdrop-blur-lg border border-white/30;
+  }
 }
 
 body {

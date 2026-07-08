@@ -71,6 +71,8 @@ const propertySchema = new Schema({
     brochureUrl: { type: String, default: null },
     titleDocuments: { type: [String], default: [] },
   },
+  features: { type: [String], required: true, default: [] },
+  description: { type: String, default: null, trim: true },
   isActive: { type: Boolean, required: true, default: true },
 });
 

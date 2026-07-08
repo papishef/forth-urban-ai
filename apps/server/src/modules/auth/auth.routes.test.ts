@@ -82,6 +82,35 @@ describe("auth routes", () => {
     expect(goodLogin.body.data.user.email).toBe("grace@example.com");
   });
 
+  it("verifies the caller's own password, rejecting a wrong one and requiring auth", async () => {
+    const app = createApp();
+    await request(app).post("/api/auth/register").send({
+      firstName: "Alan",
+      lastName: "Turing",
+      email: "alan@example.com",
+      password: "supersecret123",
+    });
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alan@example.com", password: "supersecret123" });
+    const token = login.body.data.tokens.accessToken as string;
+
+    const noAuth = await request(app).post("/api/auth/password/verify").send({ password: "supersecret123" });
+    expect(noAuth.status).toBe(401);
+
+    const wrongPassword = await request(app)
+      .post("/api/auth/password/verify")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ password: "wrongpassword" });
+    expect(wrongPassword.status).toBe(401);
+
+    const correctPassword = await request(app)
+      .post("/api/auth/password/verify")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ password: "supersecret123" });
+    expect(correctPassword.status).toBe(200);
+  });
+
   it("supports OTP request + verify as a login/verification path", async () => {
     const app = createApp();
     await request(app).post("/api/auth/otp/request").send({ email: "otp@example.com" });

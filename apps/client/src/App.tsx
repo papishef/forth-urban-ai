@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { LandingPage } from "./features/landing/landing-page";
 import { LoginPage } from "./features/auth/login-page";
 import { RegisterPage } from "./features/auth/register-page";
@@ -30,10 +31,13 @@ import { AdminLogsPage } from "./features/admin/admin-logs-page";
 import { ProtectedRoute } from "./components/protected-route";
 
 function App() {
+  const location = useLocation();
+
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
       <Route path="/login/otp" element={<OtpLoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -130,7 +134,7 @@ function App() {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute role="admin">
+          <ProtectedRoute role={["admin", "sales"]}>
             <AdminUsersPage />
           </ProtectedRoute>
         }
@@ -146,7 +150,7 @@ function App() {
       <Route
         path="/admin/inspections"
         element={
-          <ProtectedRoute role="admin">
+          <ProtectedRoute role={["admin", "sales"]}>
             <AdminInspectionsPage />
           </ProtectedRoute>
         }
@@ -154,7 +158,7 @@ function App() {
       <Route
         path="/admin/crm"
         element={
-          <ProtectedRoute role="admin">
+          <ProtectedRoute role={["admin", "sales"]}>
             <AdminCrmPage />
           </ProtectedRoute>
         }
@@ -207,7 +211,8 @@ function App() {
           </ProtectedRoute>
         }
       />
-    </Routes>
+      </Routes>
+    </AnimatePresence>
   );
 }
 
