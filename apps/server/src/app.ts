@@ -33,6 +33,17 @@ import { passport } from "./modules/auth/passport.js";
 export function createApp(): Express {
   const app = express();
 
+  // Render (like Heroku/Railway) terminates TLS at a reverse proxy in front
+  // of the app, so every request arrives from that proxy's internal address.
+  // Without this, Express's req.ip (and therefore express-rate-limit's
+  // default per-IP bucketing below) resolves to the proxy's address for
+  // EVERY request instead of the real client IP — meaning all users share a
+  // single rate-limit bucket in production and hit 429s almost immediately
+  // under any real traffic, even though each individual user is nowhere
+  // near the limit. Trusting exactly one hop reads the real client IP from
+  // X-Forwarded-For as set by Render's proxy.
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(
     cors({

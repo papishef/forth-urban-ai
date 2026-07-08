@@ -6,7 +6,7 @@ import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthResponse, UserDTO } from "@forth-urban/shared-types";
 import type { LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
-import { apiClient, setAccessToken } from "./api-client";
+import { apiClient, setAccessToken, setCsrfToken, setSessionExpiredHandler } from "./api-client";
 import { identifyAnalyticsUser, resetAnalytics } from "./analytics";
 
 interface ApiEnvelope<T> {
@@ -30,6 +30,7 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 function applyAuthResponse(data: AuthResponse) {
   setAccessToken(data.tokens.accessToken);
+  setCsrfToken(data.tokens.csrfToken);
   identifyAnalyticsUser(data.user.id, { email: data.user.email, role: data.user.role });
   return data.user;
 }
@@ -38,6 +39,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<UserDTO | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+
+  // Any request that definitively fails auth (expired/invalid session, even
+  // after a refresh attempt) reports here so we can clear local state —
+  // ProtectedRoute reacts to isAuthenticated flipping false and redirects to
+  // /login. Without this, `user` stayed populated until an explicit logout()
+  // call, so an expired session just left protected pages rendered with
+  // failed/empty queries instead of redirecting anywhere.
+  React.useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setAccessToken(null);
+      setCsrfToken(null);
+      setUser(null);
+      resetAnalytics();
+      queryClient.clear();
+    });
+    return () => setSessionExpiredHandler(null);
+  }, [queryClient]);
 
   // On first load, attempt a silent refresh using the httpOnly cookie so a
   // page reload doesn't force the user to log in again.
@@ -96,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     onSuccess: () => {
       setAccessToken(null);
+      setCsrfToken(null);
       setUser(null);
       resetAnalytics();
       queryClient.clear();

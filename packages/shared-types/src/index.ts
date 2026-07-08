@@ -31,6 +31,12 @@ export interface UserDTO {
 export interface AuthTokens {
   accessToken: string;
   accessTokenExpiresAt: string;
+  // Double-submit CSRF token, mirrored from the (non-httpOnly) csrfToken
+  // cookie. The client/server are deployed on unrelated domains (Vercel +
+  // Render), so frontend JS can never read a cookie set by a cross-origin
+  // API response via document.cookie — the token must also travel in the
+  // JSON body so the client can store it and echo it back as a header.
+  csrfToken: string;
 }
 
 export interface AuthResponse {

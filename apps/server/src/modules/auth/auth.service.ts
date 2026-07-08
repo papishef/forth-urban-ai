@@ -55,6 +55,9 @@ function toAuthResponse(user: UserDocument, tokens: IssuedTokens): AuthResponse 
     tokens: {
       accessToken: tokens.accessToken,
       accessTokenExpiresAt: getTokenExpiry(tokens.accessToken),
+      // Placeholder — the route handler overwrites this with the real,
+      // freshly-issued CSRF token via withCsrfToken() before responding.
+      csrfToken: "",
     },
   };
 }

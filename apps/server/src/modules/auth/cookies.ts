@@ -17,8 +17,15 @@ export function setRefreshCookie(res: Response, refreshToken: string): void {
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
-    sameSite: "lax",
-    domain: env.NODE_ENV === "production" ? env.COOKIE_DOMAIN : undefined,
+    // Client and API are cross-site (different registrable domains, e.g.
+    // Vercel + Render), so SameSite=Lax silently drops this cookie on every
+    // cross-origin fetch/XHR request \u2014 it only ever travels with top-level
+    // GET navigations. SameSite=None (paired with Secure) is required for
+    // the browser to send it back to the API at all. No Domain attribute:
+    // COOKIE_DOMAIN only matters if client+API share a parent apex domain
+    // (see docs/ENVIRONMENT.md); on unrelated domains it must be omitted so
+    // the cookie defaults to the API's own host.
+    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
     path: "/api/auth",
     maxAge: REFRESH_TTL_MS,
   });

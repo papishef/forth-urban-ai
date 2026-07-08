@@ -38,13 +38,20 @@ function requestMeta(req: { ip?: string; headers: Record<string, unknown>; get?:
   };
 }
 
+// Client and API are cross-site (different registrable domains), so frontend
+// JS can never read the csrfToken cookie via document.cookie — embed the
+// same token in the JSON body so the client can store and echo it back.
+function withCsrfToken<T extends { tokens: { csrfToken: string } }>(authResponse: T, csrfToken: string): T {
+  return { ...authResponse, tokens: { ...authResponse.tokens, csrfToken } };
+}
+
 authRouter.post("/register", validateBody(registerSchema), async (req, res, next) => {
   try {
     const { authResponse, refreshToken } = await authService.register(req.body, requestMeta(req));
     setRefreshCookie(res, refreshToken);
-    issueCsrfCookie(res);
+    const csrfToken = issueCsrfCookie(res);
 
-    const body: ApiEnvelope = { success: true, message: "Account created", data: authResponse, errors: null };
+    const body: ApiEnvelope = { success: true, message: "Account created", data: withCsrfToken(authResponse, csrfToken), errors: null };
     res.status(201).json(body);
   } catch (err) {
     next(err);
@@ -55,9 +62,9 @@ authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
   try {
     const { authResponse, refreshToken } = await authService.login(req.body, requestMeta(req));
     setRefreshCookie(res, refreshToken);
-    issueCsrfCookie(res);
+    const csrfToken = issueCsrfCookie(res);
 
-    const body: ApiEnvelope = { success: true, message: "Logged in", data: authResponse, errors: null };
+    const body: ApiEnvelope = { success: true, message: "Logged in", data: withCsrfToken(authResponse, csrfToken), errors: null };
     res.json(body);
   } catch (err) {
     next(err);
@@ -78,9 +85,9 @@ authRouter.post("/otp/verify", validateBody(otpVerifySchema), async (req, res, n
   try {
     const { authResponse, refreshToken } = await authService.verifyOtp(req.body.email, req.body.code, requestMeta(req));
     setRefreshCookie(res, refreshToken);
-    issueCsrfCookie(res);
+    const csrfToken = issueCsrfCookie(res);
 
-    const body: ApiEnvelope = { success: true, message: "Verified", data: authResponse, errors: null };
+    const body: ApiEnvelope = { success: true, message: "Verified", data: withCsrfToken(authResponse, csrfToken), errors: null };
     res.json(body);
   } catch (err) {
     next(err);
@@ -91,9 +98,9 @@ authRouter.post("/refresh", requireCsrf, async (req, res, next) => {
   try {
     const { authResponse, refreshToken } = await authService.refresh(req.cookies?.[REFRESH_COOKIE_NAME], requestMeta(req));
     setRefreshCookie(res, refreshToken);
-    issueCsrfCookie(res);
+    const csrfToken = issueCsrfCookie(res);
 
-    const body: ApiEnvelope = { success: true, message: "Session refreshed", data: authResponse, errors: null };
+    const body: ApiEnvelope = { success: true, message: "Session refreshed", data: withCsrfToken(authResponse, csrfToken), errors: null };
     res.json(body);
   } catch (err) {
     next(err);
