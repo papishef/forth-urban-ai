@@ -6,11 +6,15 @@ import {
   getReadinessBand,
   READINESS_BAND_LABELS,
   selectNextBestAction,
+  type BudgetCalculationResult,
+  type HiddenCostAggregationResult,
+  type RoiCalculationResult,
 } from "../decision-engine/index.js";
 import { Profile, type ProfileDocument } from "../users/profile.model.js";
 import { Property, type PropertyDocument } from "../properties/property.model.js";
 import { Recommendation } from "../properties/recommendation.model.js";
 import { CalculatorResult } from "../calculators/calculator-result.model.js";
+import { formatBudgetRange, formatNaira, formatPercent, formatRatioAsPercent } from "./format.js";
 
 /**
  * Context builders — docs/ARCHITECTURE.md#3-ai-memory-strategy-no-vector-db.
@@ -41,7 +45,7 @@ export async function buildQuizSummaryContext(userId: string): Promise<Record<st
     readinessScore: profile.readinessScore,
     resultType: READINESS_BAND_LABELS[band],
     buyerGoal: profile.buyerGoal,
-    budgetRange: profile.budgetRange,
+    budgetRange: formatBudgetRange(profile.budgetRange!),
     timeline: profile.timeline,
     biggestFear: profile.biggestFear,
     nextAction: selectNextBestAction("homeReadinessQuizCompleted"),
@@ -71,7 +75,7 @@ export async function buildRecommendationContext(userId: string, propertyId: str
     propertyName: property.name,
     estateName: property.estateName,
     reasonTags: recommendation?.reasonTags ?? [],
-    budgetRange: profile?.budgetRange ?? null,
+    budgetRange: profile?.budgetRange ? formatBudgetRange(profile.budgetRange) : null,
     buyerPersona: profile?.buyerPersona ?? null,
     nextAction: selectNextBestAction("propertyCardViewed"),
   };
@@ -93,13 +97,13 @@ export async function buildRoiExplainerContext(
   const selected = scenarios[scenario];
 
   return {
-    currentPrice: property.pricePerPlot,
+    currentPrice: formatNaira(property.pricePerPlot),
     scenario,
-    annualAppreciationRate: selected.rate,
+    annualAppreciationRate: formatPercent(selected.rate * 100),
     years,
-    futureValue: selected.futureValue,
-    estimatedGain: selected.estimatedGain,
-    roiPercent: selected.roiPercent,
+    futureValue: formatNaira(selected.futureValue),
+    estimatedGain: formatNaira(selected.estimatedGain),
+    roiPercent: formatPercent(selected.roiPercent),
     nextAction: selectNextBestAction("roiCalculatorRun"),
   };
 }
@@ -126,6 +130,39 @@ interface AskRecommendedProperty {
   name: string;
   estateName: string;
   reasonTags: string[];
+}
+
+/** Naira/2-decimal-formats a persisted `CalculatorResult.outputs` blob for the "budget" type. */
+function formatBudgetResult(outputs: BudgetCalculationResult) {
+  return {
+    balance: formatNaira(outputs.balance),
+    monthlyInstallment: formatNaira(outputs.monthlyInstallment),
+    affordabilityRatio: outputs.affordabilityRatio === null ? null : formatRatioAsPercent(outputs.affordabilityRatio),
+    affordabilityBand: outputs.affordabilityBand,
+  };
+}
+
+/** Naira-formats a persisted `CalculatorResult.outputs` blob for the "hiddenCost" type. */
+function formatHiddenCostResult(outputs: HiddenCostAggregationResult) {
+  return {
+    items: outputs.items.map((item) => ({ ...item, amount: formatNaira(item.amount) })),
+    total: formatNaira(outputs.total),
+  };
+}
+
+/** Naira/percent-formats a persisted `CalculatorResult.outputs` blob for the "roi" type. */
+function formatRoiResult(outputs: RoiCalculationResult) {
+  return Object.fromEntries(
+    Object.entries(outputs).map(([scenario, result]) => [
+      scenario,
+      {
+        rate: formatPercent(result.rate * 100),
+        futureValue: formatNaira(result.futureValue),
+        estimatedGain: formatNaira(result.estimatedGain),
+        roiPercent: formatPercent(result.roiPercent),
+      },
+    ]),
+  );
 }
 
 export async function buildAskContext(userId: string, question: string): Promise<Record<string, unknown>> {
@@ -156,13 +193,17 @@ export async function buildAskContext(userId: string, question: string): Promise
       resultType: READINESS_BAND_LABELS[band],
       buyerPersona: profile.buyerPersona,
       buyerGoal: profile.buyerGoal as BuyerGoal,
-      budgetRange: profile.budgetRange,
+      budgetRange: formatBudgetRange(profile.budgetRange!),
       timeline: profile.timeline,
       preferredArea: profile.preferredArea,
       biggestFear: profile.biggestFear,
-      latestBudgetResult: latestBudget?.outputs ?? null,
-      latestHiddenCostResult: latestHiddenCost?.outputs ?? null,
-      latestRoiResult: latestRoi?.outputs ?? null,
+      latestBudgetResult: latestBudget?.outputs
+        ? formatBudgetResult(latestBudget.outputs as BudgetCalculationResult)
+        : null,
+      latestHiddenCostResult: latestHiddenCost?.outputs
+        ? formatHiddenCostResult(latestHiddenCost.outputs as HiddenCostAggregationResult)
+        : null,
+      latestRoiResult: latestRoi?.outputs ? formatRoiResult(latestRoi.outputs as RoiCalculationResult) : null,
       recommendedProperties,
       nextAction: selectNextBestAction("homeReadinessQuizCompleted"),
     },

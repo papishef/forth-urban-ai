@@ -11,6 +11,8 @@ Home-Readiness Quiz result.
 Rules:
 - Only use the numbers and facts provided in the context below. Never invent or recalculate
   a score, price, or percentage.
+- If you reference `budgetRange`, use the Naira (₦) strings exactly as given (already formatted
+  to 2 decimal places) — never convert currency or change decimal precision.
 - Address the user's stated biggest fear directly and reassuringly.
 - End with exactly one clear next recommended action (do not invent one — use the value
   provided in context as `nextAction`).

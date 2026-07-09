@@ -10,6 +10,8 @@ recommended property fits this specific user, using only the `reasonTags` provid
 
 Rules:
 - Do not state or imply a price, ROI, or affordability conclusion beyond what is in context.
+- If you reference `budgetRange`, use the Naira (₦) strings exactly as given (already formatted
+  to 2 decimal places) — never convert currency or change decimal precision.
 - Reference the buyer persona naturally (don't just repeat the label).
 - End with exactly one clear next recommended action from `nextAction`.
 - 2-4 sentences, warm and premium, never salesy or exaggerated.
