@@ -119,6 +119,9 @@ export const openApiDocument = {
     { name: "Inspections" },
     { name: "Notifications" },
     { name: "Events" },
+    { name: "Contact" },
+    { name: "Newsletter" },
+    { name: "Blog" },
     { name: "Admin" },
   ],
   components: {
@@ -146,6 +149,8 @@ export const openApiDocument = {
     },
     "/auth/password/forgot": { post: op("Request a password reset email", ["Auth"], { auth: "none", body: true }) },
     "/auth/password/reset": { post: op("Reset password with a reset token", ["Auth"], { auth: "none", body: true }) },
+    "/auth/password/verify": { post: op("Issue a short-lived re-authentication token", ["Auth"], { body: true }) },
+    "/auth/password/change": { post: op("Change the authenticated user's password", ["Auth"], { body: true }) },
     "/auth/google": { get: op("Start Google OAuth login (redirect)", ["Auth"], { auth: "none" }) },
     "/auth/google/callback": { get: op("Google OAuth callback (redirect)", ["Auth"], { auth: "none" }) },
     "/auth/me": { get: op("Get the current authenticated user", ["Auth"]) },
@@ -208,10 +213,80 @@ export const openApiDocument = {
 
     "/events": { post: op("Track a client-fired analytics event", ["Events"], { body: true, successStatus: 201 }) },
 
+    "/contact": {
+      post: op("Submit the public contact form", ["Contact"], { auth: "none", body: true, successStatus: 201 }),
+    },
+
+    "/newsletter/subscribe": {
+      post: op("Subscribe to the newsletter (double opt-in)", ["Newsletter"], { auth: "none", body: true }),
+    },
+    "/newsletter/confirm/{token}": {
+      get: op("Confirm a newsletter subscription", ["Newsletter"], { auth: "none", params: [{ name: "token" }] }),
+    },
+    "/newsletter/unsubscribe/{token}": {
+      get: op("Unsubscribe from the newsletter", ["Newsletter"], { auth: "none", params: [{ name: "token" }] }),
+    },
+
+    "/blog": { get: op("List published blog posts", ["Blog"], { auth: "none" }) },
+    "/blog/{slug}": {
+      get: op("Get a published blog post by slug", ["Blog"], {
+        auth: "none",
+        params: [{ name: "slug" }],
+        responses: { 404: jsonResponse("Not found") },
+      }),
+    },
+
+    "/admin/contact-messages": { get: op("List contact form submissions", ["Admin"], { auth: "admin" }) },
+    "/admin/contact-messages/{id}": {
+      get: op("Get a contact form submission", ["Admin"], { auth: "admin", params: [{ name: "id" }] }),
+      patch: op("Update a contact message's triage status", ["Admin"], {
+        auth: "admin",
+        body: true,
+        params: [{ name: "id" }],
+      }),
+    },
+
+    "/admin/newsletter": { get: op("List newsletter subscribers", ["Admin"], { auth: "admin" }) },
+
+    "/admin/blog": {
+      get: op("List all blog posts (draft + published)", ["Admin"], { auth: "admin" }),
+      post: op("Create a blog post", ["Admin"], { auth: "admin", body: true, successStatus: 201 }),
+    },
+    "/admin/blog/{id}": {
+      get: op("Get a blog post (admin)", ["Admin"], { auth: "admin", params: [{ name: "id" }] }),
+      patch: op("Update a blog post", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
+      delete: op("Soft-delete a blog post", ["Admin"], { auth: "admin", params: [{ name: "id" }] }),
+    },
+    "/admin/blog/{id}/media": {
+      post: op("Upload a blog post cover image to Cloudinary", ["Admin"], {
+        auth: "admin",
+        body: true,
+        params: [{ name: "id" }],
+      }),
+    },
+    "/admin/blog/{id}/publish": {
+      post: op("Publish a blog post, optionally dispatching a newsletter campaign", ["Admin"], {
+        auth: "admin",
+        body: true,
+        params: [{ name: "id" }],
+      }),
+    },
+
     "/admin/users": { get: op("List users", ["Admin"], { auth: "admin" }) },
     "/admin/users/{id}": {
       get: op("Get a user", ["Admin"], { auth: "admin", params: [{ name: "id" }] }),
-      patch: op("Update a user (e.g. role)", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
+      patch: op("Update a user's status", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
+    },
+    "/admin/sub-admins": {
+      get: op("List the owner's sub-admin access profiles", ["Admin"], { auth: "admin" }),
+      post: op("Grant named menu access to an existing user", ["Admin"], { auth: "admin", body: true, successStatus: 201 }),
+    },
+    "/admin/sub-admins/candidates": {
+      get: op("List active users eligible for sub-admin access", ["Admin"], { auth: "admin" }),
+    },
+    "/admin/sub-admins/{id}": {
+      patch: op("Update a sub-admin title, permissions, or status", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
+      delete: op("Remove sub-admin access and restore the user account", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
     },
     "/admin/properties": {
       get: op("List properties (admin)", ["Admin"], { auth: "admin" }),

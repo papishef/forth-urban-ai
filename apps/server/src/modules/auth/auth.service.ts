@@ -1,4 +1,4 @@
-import type { RegisterInput, LoginInput } from "@forth-urban/validation";
+import type { ChangePasswordInput, RegisterInput, LoginInput } from "@forth-urban/validation";
 import type { AuthResponse } from "@forth-urban/shared-types";
 import { ApiError } from "../../middleware/error-handler.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
@@ -12,6 +12,7 @@ import { PasswordResetToken } from "./password-reset-token.model.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken, getTokenExpiry } from "./jwt.util.js";
 import { refreshExpiresAt } from "./cookies.js";
 import { env } from "../../config/env.js";
+import { issueReauthToken } from "./reauth.service.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
@@ -38,7 +39,7 @@ async function issueSession(user: UserDocument, meta: RequestMeta): Promise<Issu
 
   const accessToken = signAccessToken({
     sub: user._id.toString(),
-    role: user.role as "user" | "admin" | "sales",
+    role: user.role as "user" | "admin",
     email: user.email,
   });
   const refreshToken = signRefreshToken({ sub: user._id.toString(), sessionId: session._id.toString() });
@@ -124,16 +125,35 @@ export async function login(input: LoginInput, meta: RequestMeta) {
  * user's role/status) behind a fresh password confirmation, independent
  * of whether their access token is still valid.
  */
-export async function verifyPassword(userId: string, password: string): Promise<void> {
+export async function verifyPassword(userId: string, password: string): Promise<string> {
+  return issueReauthToken(userId, password);
+}
+
+export async function changePassword(userId: string, input: ChangePasswordInput, meta: RequestMeta) {
   const user = await User.findById(userId).select("+passwordHash");
-  if (!user || !user.passwordHash) {
-    throw new ApiError(401, "Incorrect password");
+  if (!user) throw new ApiError(404, "User not found");
+  if (!user.passwordHash) {
+    throw new ApiError(400, "This account does not have a local password. Use password recovery to set one first.");
   }
 
-  const valid = await compareSecret(password, user.passwordHash);
-  if (!valid) {
-    throw new ApiError(401, "Incorrect password");
-  }
+  const valid = await compareSecret(input.currentPassword, user.passwordHash);
+  if (!valid) throw new ApiError(401, "Incorrect current password");
+
+  user.set("passwordHash", await hashSecret(input.newPassword));
+  await user.save();
+  await Session.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+
+  const tokens = await issueSession(user, meta);
+  await recordAuditLog({
+    actorId: user._id.toString(),
+    actorType: "user",
+    action: "auth.password_changed",
+    targetType: "User",
+    targetId: user._id.toString(),
+    ipAddress: meta.ip,
+  });
+
+  return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
 }
 
 /** Requests an OTP for email verification or passwordless login (Resend email). */
@@ -222,6 +242,11 @@ export async function refresh(refreshToken: string | undefined, meta: RequestMet
 
   const user = await User.findById(session.userId);
   if (!user) throw new ApiError(401, "Account no longer exists");
+  if (user.status === "suspended") {
+    session.set("revokedAt", new Date());
+    await session.save();
+    throw new ApiError(403, "This account has been suspended");
+  }
 
   // Rotate: revoke this session's token and issue a brand new session.
   session.set("revokedAt", new Date());

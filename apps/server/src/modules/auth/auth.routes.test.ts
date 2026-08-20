@@ -109,6 +109,37 @@ describe("auth routes", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ password: "supersecret123" });
     expect(correctPassword.status).toBe(200);
+    expect(correctPassword.body.data.reauthToken).toBeTypeOf("string");
+  });
+
+  it("changes a local password, rotates the session, and invalidates the old credential", async () => {
+    const app = createApp();
+    const login = await request(app).post("/api/auth/register").send({
+      firstName: "Dorothy",
+      lastName: "Hodgkin",
+      email: "dorothy@example.com",
+      password: "originalpass1",
+    });
+    const oldToken = login.body.data.tokens.accessToken as string;
+
+    const change = await request(app)
+      .post("/api/auth/password/change")
+      .set("Authorization", `Bearer ${oldToken}`)
+      .send({ currentPassword: "originalpass1", newPassword: "brandnewpass1", confirmPassword: "brandnewpass1" });
+
+    expect(change.status).toBe(200);
+    expect(change.body.data.tokens.accessToken).toBeTypeOf("string");
+    expect(change.body.data.tokens.accessToken).not.toBe(oldToken);
+
+    const oldLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "dorothy@example.com", password: "originalpass1" });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "dorothy@example.com", password: "brandnewpass1" });
+    expect(newLogin.status).toBe(200);
   });
 
   it("supports OTP request + verify as a login/verification path", async () => {

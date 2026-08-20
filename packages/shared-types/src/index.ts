@@ -6,9 +6,47 @@
  * Phase 1: auth/user DTOs.
  */
 
-export type UserRole = "user" | "admin" | "sales";
+export type UserRole = "user" | "admin";
 export type UserStatus = "active" | "suspended";
 export type AuthProvider = "local" | "google";
+
+/** Grantable admin-side menus. Team management is owner-only and is not grantable. */
+export const ADMIN_MENU_KEYS = [
+  "inspections",
+  "crm",
+  "contact-messages",
+  "users",
+  "properties",
+  "blog",
+  "newsletter",
+  "email-campaigns",
+  "analytics",
+  "settings",
+  "areas",
+  "prompts",
+  "logs",
+] as const;
+
+export type AdminMenuKey = (typeof ADMIN_MENU_KEYS)[number];
+
+/** Menus whose current API surface has no supported write operation. */
+export const READ_ONLY_ADMIN_MENU_KEYS = ["users", "newsletter", "email-campaigns", "analytics", "logs"] as const;
+
+export interface AdminMenuPermissionDTO {
+  read: boolean;
+  write: boolean;
+}
+
+export type AdminMenuPermissionsDTO = Partial<Record<AdminMenuKey, AdminMenuPermissionDTO>>;
+
+/** Owner-managed access attached to an ordinary user account. */
+export interface AdminAccessDTO {
+  title: string;
+  ownerId: string;
+  permissions: AdminMenuPermissionsDTO;
+  grantedAt: string;
+  updatedAt: string;
+}
 
 /** Client-safe user shape — never includes passwordHash or other secrets. */
 export interface UserDTO {
@@ -24,6 +62,8 @@ export interface UserDTO {
   isDiaspora: boolean;
   role: UserRole;
   status: UserStatus;
+  /** Present for the signed-in user when the owner has granted admin access. */
+  adminAccess?: AdminAccessDTO | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -447,6 +487,79 @@ export interface AdminPromptDTO {
   modelHint: string;
   inputs: string[];
   body: string;
+}
+
+/**
+ * Marketing Website Layer DTOs: Contact, Newsletter, and Blog.
+ */
+
+export type ContactReason = "general" | "buying" | "site-inspection" | "partnership" | "other";
+export type ContactMessageStatus = "new" | "read" | "archived";
+
+export interface ContactMessageDTO {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  reason: ContactReason;
+  message: string;
+  status: ContactMessageStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NewsletterSubscriberStatus = "pending" | "confirmed" | "unsubscribed";
+
+export interface NewsletterSubscriberDTO {
+  id: string;
+  email: string;
+  status: NewsletterSubscriberStatus;
+  source: string;
+  confirmedAt: string | null;
+  unsubscribedAt: string | null;
+  createdAt: string;
+}
+
+export type BlogPostStatus = "draft" | "published";
+
+export type BlogPostCategory =
+  | "Market Insights"
+  | "Investment Guides"
+  | "Legal & Due Diligence"
+  | "Company News"
+  | "Area Spotlights";
+
+export interface BlogPostDTO {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  bodyMarkdown: string;
+  coverImageUrl: string | null;
+  category: BlogPostCategory;
+  tags: string[];
+  status: BlogPostStatus;
+  publishedAt: string | null;
+  authorName: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  newsletterSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPostListItemDTO {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  coverImageUrl: string | null;
+  category: BlogPostCategory;
+  tags: string[];
+  status: BlogPostStatus;
+  publishedAt: string | null;
+  authorName: string;
+  createdAt: string;
 }
 
 export interface AdminPromptPreviewDTO {

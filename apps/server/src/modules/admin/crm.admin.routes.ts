@@ -4,6 +4,7 @@ import type { AdminCrmEventDTO, PipelineStage } from "@forth-urban/shared-types"
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { CrmEvent, type CrmEventDocument } from "../crm/index.js";
 import { User } from "../users/index.js";
 
@@ -58,7 +59,7 @@ crmAdminRouter.get("/", async (req, res, next) => {
   }
 });
 
-crmAdminRouter.patch("/:userId", validateBody(adminUpdateCrmEventSchema), async (req, res, next) => {
+crmAdminRouter.patch("/:userId", requireAdminPermission("crm", "write"), validateBody(adminUpdateCrmEventSchema), async (req, res, next) => {
   try {
     const userId = req.params.userId;
     const latest = await CrmEvent.findOne({ userId }).sort({ createdAt: -1 });

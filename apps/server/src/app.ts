@@ -24,6 +24,9 @@ import { inspectionsRouter } from "./modules/inspections/index.js";
 import { notificationsRouter } from "./modules/notifications/index.js";
 import { adminRouter } from "./modules/admin/index.js";
 import { eventsRouter } from "./modules/events/index.js";
+import { contactRouter } from "./modules/contact/index.js";
+import { newsletterRouter } from "./modules/newsletter/index.js";
+import { blogRouter } from "./modules/blog/index.js";
 import { passport } from "./modules/auth/passport.js";
 
 /**
@@ -99,6 +102,9 @@ export function createApp(): Express {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/contact", contactRouter);
+  app.use("/api/newsletter", newsletterRouter);
+  app.use("/api/blog", blogRouter);
 
   // Phase 10: OpenAPI/Swagger UI (docs/IMPLEMENTATION_PLAN.md#phase-10). Open
   // in non-production so local/preview developers can explore the API

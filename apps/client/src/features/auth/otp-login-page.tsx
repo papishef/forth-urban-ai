@@ -6,6 +6,7 @@ import { otpRequestSchema, otpVerifySchema, type OtpRequestInput, type OtpVerify
 import { Button, Input, Label } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { getErrorMessage } from "../../lib/api-error";
+import { getAdminLandingPath } from "../../lib/admin-access";
 import { AuthLayout } from "./auth-layout";
 
 export function OtpLoginPage() {
@@ -33,8 +34,8 @@ export function OtpLoginPage() {
   const onVerify = verifyForm.handleSubmit(async (values) => {
     setServerError(null);
     try {
-      await verifyOtp(values);
-      navigate("/dashboard");
+      const user = await verifyOtp(values);
+      navigate(getAdminLandingPath(user));
     } catch (err) {
       setServerError(getErrorMessage(err, "Incorrect or expired code"));
     }

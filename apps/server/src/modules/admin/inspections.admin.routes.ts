@@ -4,6 +4,7 @@ import type { AdminInspectionBookingDTO, InspectionBookingStatus, NextActionDTO,
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { selectNextBestAction } from "../decision-engine/index.js";
 import { InspectionBooking, type InspectionBookingDocument } from "../inspections/inspection-booking.model.js";
 import { User } from "../users/index.js";
@@ -72,7 +73,7 @@ inspectionsAdminRouter.get("/", async (req, res, next) => {
   }
 });
 
-inspectionsAdminRouter.patch("/:id", validateBody(adminUpdateInspectionSchema), async (req, res, next) => {
+inspectionsAdminRouter.patch("/:id", requireAdminPermission("inspections", "write"), validateBody(adminUpdateInspectionSchema), async (req, res, next) => {
   try {
     const booking = await InspectionBooking.findById(req.params.id);
     if (!booking) throw new ApiError(404, "Inspection booking not found");

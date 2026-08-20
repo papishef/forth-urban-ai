@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app.js";
-import { registerAdmin, registerSales, registerUser } from "./test-helpers.js";
+import { registerAdmin, registerSubAdmin, registerUser } from "./test-helpers.js";
 
 describe("admin users routes", () => {
   it("rejects admin routes without a token", async () => {
@@ -53,7 +53,7 @@ describe("admin users routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("updates a user's role/status", async () => {
+  it("updates a user's status", async () => {
     const app = createApp();
     const { token } = await registerAdmin(app);
     const { userId } = await registerUser(app, { email: "buyer4@example.com" });
@@ -61,16 +61,16 @@ describe("admin users routes", () => {
     const res = await request(app)
       .patch(`/api/admin/users/${userId}`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ role: "sales", status: "suspended" });
+      .send({ status: "suspended" });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.role).toBe("sales");
+    expect(res.body.data.role).toBe("user");
     expect(res.body.data.status).toBe("suspended");
   });
 
-  it("lets a sales user list users (read-only) but rejects their attempt to change role/status", async () => {
+  it("lets a read-only sub-admin list users but rejects status changes", async () => {
     const app = createApp();
-    const { token } = await registerSales(app);
+    const { token } = await registerSubAdmin(app, { users: { read: true, write: false } });
     const { userId } = await registerUser(app, { email: "buyer5@example.com" });
 
     const listRes = await request(app).get("/api/admin/users").set("Authorization", `Bearer ${token}`);

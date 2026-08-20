@@ -1,17 +1,14 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { apiClient, setAccessToken } from "../../lib/api-client";
+import type { AuthResponse } from "@forth-urban/shared-types";
+import { apiClient } from "../../lib/api-client";
+import { getAdminLandingPath } from "../../lib/admin-access";
 import { useAuth } from "../../lib/auth-context";
 
 interface ApiEnvelope<T> {
   success: boolean;
   message: string;
   data: T | null;
-}
-
-interface AuthRefreshData {
-  user: unknown;
-  tokens: { accessToken: string };
 }
 
 /**
@@ -21,14 +18,15 @@ interface AuthRefreshData {
  */
 export function GoogleCallbackPage() {
   const navigate = useNavigate();
-  const { isLoading } = useAuth();
+  const { isLoading, applyAuthResponse } = useAuth();
 
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await apiClient.post<ApiEnvelope<AuthRefreshData>>("/auth/refresh");
-        if (res.data.data) setAccessToken(res.data.data.tokens.accessToken);
-        navigate("/dashboard", { replace: true });
+        const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/refresh");
+        if (!res.data.data) throw new Error("Session could not be restored");
+        const user = applyAuthResponse(res.data.data);
+        navigate(getAdminLandingPath(user), { replace: true });
       } catch {
         navigate("/login?error=google", { replace: true });
       }

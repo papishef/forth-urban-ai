@@ -2,19 +2,18 @@ import * as React from "react";
 import { AnimatePresence } from "framer-motion";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input } from "@forth-urban/ui";
-import type { UserRole, UserStatus } from "@forth-urban/shared-types";
+import type { UserStatus } from "@forth-urban/shared-types";
 import { useAuth } from "../../lib/auth-context";
 import { useAdminUpdateUser, useAdminUsers, useVerifyPassword } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 import { PasswordConfirmModal } from "./password-confirm-modal";
 
-const ROLES: UserRole[] = ["user", "admin", "sales"];
 const STATUSES: UserStatus[] = ["active", "suspended"];
 
 interface PendingChange {
   userId: string;
   userName: string;
-  field: "role" | "status";
+  field: "status";
   previousValue: string;
   nextValue: string;
 }
@@ -32,10 +31,7 @@ export function AdminUsersPage() {
   async function handleConfirmChange(password: string) {
     if (!pendingChange) return;
     await verifyPassword.mutateAsync(password);
-    await updateUser.mutateAsync({
-      id: pendingChange.userId,
-      [pendingChange.field]: pendingChange.nextValue,
-    } as { id: string; role?: UserRole; status?: UserStatus });
+    await updateUser.mutateAsync({ id: pendingChange.userId, status: pendingChange.nextValue as UserStatus });
     setPendingChange(null);
   }
 
@@ -78,25 +74,9 @@ export function AdminUsersPage() {
                 </div>
                 {isAdmin ? (
                   <div className="flex items-center gap-2">
-                    <select
-                      className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-base outline-none focus:outline-none focus:border-[#5C4033]/60 focus:shadow-[0_0_0_3px_rgba(92,64,51,0.14),0_8px_24px_-6px_rgba(92,64,51,0.4)]"
-                      value={user.role}
-                      onChange={(e) =>
-                        setPendingChange({
-                          userId: user.id,
-                          userName,
-                          field: "role",
-                          previousValue: user.role,
-                          nextValue: e.target.value,
-                        })
-                      }
-                    >
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="inline-flex items-center rounded-full border border-[#181818]/10 bg-[#181818]/5 px-2.5 py-1 text-xs font-medium capitalize text-[#181818]/70">
+                      {user.role}
+                    </span>
                     <select
                       className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-base outline-none focus:outline-none focus:border-[#5C4033]/60 focus:shadow-[0_0_0_3px_rgba(92,64,51,0.14),0_8px_24px_-6px_rgba(92,64,51,0.4)]"
                       value={user.status}
@@ -168,7 +148,7 @@ export function AdminUsersPage() {
             description={
               <>
                 You&apos;re changing <span className="font-medium text-[#181818]">{pendingChange.userName}</span>
-                &apos;s {pendingChange.field === "role" ? "role" : "status"} from{" "}
+                &apos;s status from{" "}
                 <span className="font-medium text-[#5C4033]">{pendingChange.previousValue}</span> to{" "}
                 <span className="font-medium text-[#5C4033]">{pendingChange.nextValue}</span>. Enter your password to
                 confirm.

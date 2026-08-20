@@ -5,5 +5,5 @@
  * Google OAuth (Passport), logout/session revocation, password reset.
  */
 export { authRouter } from "./auth.routes.js";
-export { requireAuth, requireRole } from "./auth.middleware.js";
+export { requireAuth, requireReauth, requireRole } from "./auth.middleware.js";
 

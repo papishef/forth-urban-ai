@@ -4,12 +4,15 @@ import type { AdminUserDTO, PaginatedResultDTO } from "@forth-urban/shared-types
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireOwnerAdmin } from "../auth/permissions.js";
+import { Session } from "../auth/session.model.js";
 import { User, Profile, toUserDTO, toProfileDTO } from "../users/index.js";
 
 /**
  * `GET/PATCH /api/admin/users` — Phase 7 admin users list/detail
  * (docs/IMPLEMENTATION_PLAN.md#phase-7--admin-dashboard). Mounted under
- * `adminRouter`, which already applies `requireAuth` + `requireRole("admin")`.
+ * `adminRouter`, which applies the Users read grant; status changes remain
+ * owner-only.
  */
 export const usersAdminRouter: Router = Router();
 
@@ -43,7 +46,7 @@ usersAdminRouter.get("/", async (req, res, next) => {
     const profileByUserId = new Map(profiles.map((p) => [p.userId!.toString(), p]));
 
     const items: AdminUserDTO[] = users.map((user) => ({
-      ...toUserDTO(user),
+      ...toUserDTO(user, { includeAdminAccess: false }),
       profile: (() => {
         const profile = profileByUserId.get(user._id.toString());
         return profile ? toProfileDTO(profile) : null;
@@ -64,7 +67,10 @@ usersAdminRouter.get("/:id", async (req, res, next) => {
     if (!user) throw new ApiError(404, "User not found");
     const profile = await Profile.findOne({ userId: user._id });
 
-    const data: AdminUserDTO = { ...toUserDTO(user), profile: profile ? toProfileDTO(profile) : null };
+    const data: AdminUserDTO = {
+      ...toUserDTO(user, { includeAdminAccess: false }),
+      profile: profile ? toProfileDTO(profile) : null,
+    };
     const body: ApiEnvelope = { success: true, message: "OK", data, errors: null };
     res.json(body);
   } catch (err) {
@@ -72,21 +78,19 @@ usersAdminRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-usersAdminRouter.patch("/:id", validateBody(adminUpdateUserSchema), async (req, res, next) => {
+usersAdminRouter.patch("/:id", requireOwnerAdmin(), validateBody(adminUpdateUserSchema), async (req, res, next) => {
   try {
-    // Reachable by role=sales for the GET routes above (read-only), but a
-    // role/status change is admin-only — enforced here since the router-
-    // level gate in modules/admin/index.ts allows both roles into `/users`.
-    if (req.auth!.role !== "admin") {
-      throw new ApiError(403, "Only admins can change a user's role or status");
-    }
-
     const user = await User.findById(req.params.id);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (req.body.role) user.role = req.body.role;
+    if (req.params.id === req.auth!.sub && req.body.status === "suspended") {
+      throw new ApiError(400, "The owner admin cannot suspend their own account");
+    }
     if (req.body.status) user.status = req.body.status;
     await user.save();
+    if (req.body.status === "suspended") {
+      await Session.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+    }
 
     await recordAuditLog({
       actorId: req.auth!.sub,
@@ -94,11 +98,14 @@ usersAdminRouter.patch("/:id", validateBody(adminUpdateUserSchema), async (req, 
       action: "admin.user.updated",
       targetType: "User",
       targetId: user._id.toString(),
-      metadata: { role: req.body.role, status: req.body.status },
+      metadata: { status: req.body.status },
     });
 
     const profile = await Profile.findOne({ userId: user._id });
-    const data: AdminUserDTO = { ...toUserDTO(user), profile: profile ? toProfileDTO(profile) : null };
+    const data: AdminUserDTO = {
+      ...toUserDTO(user, { includeAdminAccess: false }),
+      profile: profile ? toProfileDTO(profile) : null,
+    };
     const body: ApiEnvelope = { success: true, message: "User updated", data, errors: null };
     res.json(body);
   } catch (err) {

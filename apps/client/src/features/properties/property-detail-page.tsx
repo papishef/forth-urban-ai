@@ -51,7 +51,7 @@ export function PropertyDetailPage() {
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             ← Back
           </Button>
-          <Link to="/dashboard">
+          <Link to="/">
             <Logo className="h-7" />
           </Link>
         </div>

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../auth/auth.middleware.js";
+import { userProfileUpdateSchema } from "@forth-urban/validation";
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
+import { validateBody } from "../../middleware/validate.js";
 import { User } from "./user.model.js";
 import { toUserDTO } from "./user.mapper.js";
 
@@ -32,7 +34,7 @@ const PATCHABLE_FIELDS = [
   "isDiaspora",
 ] as const;
 
-usersRouter.patch("/me", requireAuth, async (req, res, next) => {
+usersRouter.patch("/me", requireAuth, validateBody(userProfileUpdateSchema), async (req, res, next) => {
   try {
     const user = await User.findById(req.auth!.sub);
     if (!user) throw new ApiError(404, "User not found");

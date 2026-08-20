@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { HomeReadinessQuizPage } from "./home-readiness-quiz-page";
@@ -24,16 +24,27 @@ vi.mock("./quiz-api", () => ({
 // Render children directly, stripping motion-only props.
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  motion: {
-    div: ({
-      children,
-      initial: _initial,
-      animate: _animate,
-      exit: _exit,
-      transition: _transition,
-      ...rest
-    }: React.ComponentPropsWithoutRef<"div"> & Record<string, unknown>) => <div {...rest}>{children}</div>,
-  },
+  motion: new Proxy(
+    {},
+    {
+      get: (_target, prop: string) => {
+        const Component = ({
+          children,
+          initial: _initial,
+          animate: _animate,
+          exit: _exit,
+          transition: _transition,
+          whileHover: _whileHover,
+          whileTap: _whileTap,
+          ...rest
+        }: React.ComponentPropsWithoutRef<"div"> & Record<string, unknown>) => {
+          const Tag = (prop || "div") as any;
+          return <Tag {...rest}>{children}</Tag>;
+        };
+        return Component;
+      },
+    },
+  ),
 }));
 
 function renderPage() {
@@ -76,12 +87,12 @@ describe("HomeReadinessQuizPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 2 of 9/i)).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(/minimum/i), "1000000");
-    await userEvent.type(screen.getByLabelText(/maximum/i), "5000000");
+    fireEvent.change(screen.getByLabelText(/minimum/i), { target: { value: "1000000" } });
+    fireEvent.change(screen.getByLabelText(/maximum/i), { target: { value: "5000000" } });
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 3 of 9/i)).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(/monthly income/i), "300000");
+    fireEvent.change(screen.getByLabelText(/monthly income/i), { target: { value: "300000" } });
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 4 of 9/i)).toBeInTheDocument();
@@ -93,7 +104,7 @@ describe("HomeReadinessQuizPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 6 of 9/i)).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(/area you're considering/i), "Kuje");
+    fireEvent.change(screen.getByLabelText(/area you're considering/i), { target: { value: "Kuje" } });
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 7 of 9/i)).toBeInTheDocument();
@@ -106,7 +117,7 @@ describe("HomeReadinessQuizPage", () => {
 
     expect(await screen.findByText(/step 9 of 9/i)).toBeInTheDocument();
     await selectRadio(/physical site inspection/i);
-    await userEvent.click(screen.getByRole("button", { name: /see my result/i }));
+    await userEvent.click(screen.getByRole("button", { name: /see results/i }));
 
     await screen.findByText(/step 9 of 9/i);
     expect(mockSubmitMutateAsync).toHaveBeenCalledWith(

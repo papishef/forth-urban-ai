@@ -3,6 +3,8 @@ import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from
 import type { PipelineStage } from "@forth-urban/shared-types";
 import { useAdminCrmBoard, useAdminUpdateCrmEvent } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 
 const STAGES: PipelineStage[] = [
   "new",
@@ -18,6 +20,8 @@ const STAGES: PipelineStage[] = [
 export function AdminCrmPage() {
   const { data, isLoading } = useAdminCrmBoard();
   const updateEvent = useAdminUpdateCrmEvent();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "crm");
   const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
 
   return (
@@ -47,6 +51,7 @@ export function AdminCrmPage() {
                       <select
                         className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-xs"
                         value={lead.pipelineStage}
+                        disabled={!canWrite}
                         onChange={(e) =>
                           updateEvent.mutate({
                             userId: lead.userId,
@@ -65,12 +70,13 @@ export function AdminCrmPage() {
                           className="min-w-0 flex-1 rounded-md border border-[#181818]/20 px-2 py-1 text-xs"
                           placeholder="Add a note…"
                           value={noteDrafts[lead.userId] ?? ""}
+                          disabled={!canWrite}
                           onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [lead.userId]: e.target.value }))}
                         />
                         <Button
                           variant="secondary"
                           className="px-2 py-1 text-xs"
-                          disabled={!noteDrafts[lead.userId]}
+                          disabled={!canWrite || !noteDrafts[lead.userId]}
                           onClick={() => {
                             updateEvent.mutate({ userId: lead.userId, input: { addNote: noteDrafts[lead.userId] } });
                             setNoteDrafts((prev) => ({ ...prev, [lead.userId]: "" }));

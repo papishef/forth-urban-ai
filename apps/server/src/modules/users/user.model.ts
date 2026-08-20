@@ -1,6 +1,25 @@
 import { Schema, model, type HydratedDocument, type InferSchemaType } from "mongoose";
 import { applyBaseSchema } from "../../db/base-schema.plugin.js";
 
+const adminMenuPermissionSchema = new Schema(
+  {
+    read: { type: Boolean, required: true, default: false },
+    write: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+const adminAccessSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 80 },
+    ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    permissions: { type: Map, of: adminMenuPermissionSchema, required: true, default: {} },
+    grantedAt: { type: Date, required: true, default: Date.now },
+    updatedAt: { type: Date, required: true, default: Date.now },
+  },
+  { _id: false },
+);
+
 /**
  * `users` collection — see docs/ARCHITECTURE.md#5-database-schema-mongodb-atlas.
  *
@@ -26,8 +45,9 @@ const userSchema = new Schema({
   currentCity: { type: String, default: null },
   currentCountry: { type: String, default: null },
   isDiaspora: { type: Boolean, default: false },
-  role: { type: String, enum: ["user", "admin", "sales"], default: "user" },
+  role: { type: String, enum: ["user", "admin"], default: "user" },
   status: { type: String, enum: ["active", "suspended"], default: "active" },
+  adminAccess: { type: adminAccessSchema, default: null },
   tenantId: { type: String, default: null },
 });
 

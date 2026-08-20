@@ -9,23 +9,32 @@ import type {
   AdminQuizAnalyticsDTO,
   AdminUserDTO,
   AreaDTO,
+  BlogPostDTO,
+  ContactMessageDTO,
+  NewsletterSubscriberDTO,
   PaginatedResultDTO,
   PropertyDTO,
   SettingsDTO,
-  UserRole,
   UserStatus,
 } from "@forth-urban/shared-types";
 import type {
   AdminAreaInput,
+  AdminBlogMediaUploadInput,
+  AdminBlogPostInput,
+  AdminBlogPostUpdateInput,
   AdminMediaDeleteInput,
   AdminMediaUploadInput,
   AdminPreviewPromptInput,
   AdminPropertyInput,
   AdminPropertyUpdateInput,
+  AdminPublishBlogPostInput,
+  AdminUpdateContactMessageInput,
   AdminUpdateCrmEventInput,
   AdminUpdateInspectionInput,
   AdminUpdatePromptInput,
   AdminUpdateSettingsInput,
+  CreateSubAdminInput,
+  UpdateSubAdminInput,
 } from "@forth-urban/validation";
 import { apiClient } from "../../lib/api-client";
 
@@ -34,7 +43,6 @@ interface ApiEnvelope<T> {
   message: string;
   data: T | null;
 }
-
 /**
  * Phase 7: Admin dashboard API hooks — every request here hits an
  * `/api/admin/*` route gated to `role=admin` on the server
@@ -46,18 +54,22 @@ async function get<T>(path: string): Promise<T> {
   return res.data.data as T;
 }
 
-async function post<T>(path: string, body?: unknown): Promise<T> {
-  const res = await apiClient.post<ApiEnvelope<T>>(path, body);
+async function post<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
+  const res = await apiClient.post<ApiEnvelope<T>>(path, body, headers ? { headers } : undefined);
   return res.data.data as T;
 }
 
-async function patch<T>(path: string, body?: unknown): Promise<T> {
-  const res = await apiClient.patch<ApiEnvelope<T>>(path, body);
+async function patch<T>(
+  path: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
+  const res = await apiClient.patch<ApiEnvelope<T>>(path, body, headers ? { headers } : undefined);
   return res.data.data as T;
 }
 
-async function del<T>(path: string, body?: unknown): Promise<T> {
-  const res = await apiClient.delete<ApiEnvelope<T>>(path, { data: body });
+async function del<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
+  const res = await apiClient.delete<ApiEnvelope<T>>(path, { data: body, headers });
   return res.data.data as T;
 }
 
@@ -78,9 +90,69 @@ export function useAdminUsers(page: number, search = "") {
 export function useAdminUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, role, status }: { id: string; role?: UserRole; status?: UserStatus }) =>
-      patch<AdminUserDTO>(`/admin/users/${id}`, { role, status }),
+    mutationFn: ({ id, status }: { id: string; status?: UserStatus }) =>
+      patch<AdminUserDTO>(`/admin/users/${id}`, { status }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+}
+
+export function useAdminSubAdmins() {
+  return useQuery({
+    queryKey: ["admin", "sub-admins"],
+    queryFn: () => get<AdminUserDTO[]>("/admin/sub-admins"),
+  });
+}
+
+export function useAdminSubAdminCandidates() {
+  return useQuery({
+    queryKey: ["admin", "sub-admin-candidates"],
+    queryFn: () => get<AdminUserDTO[]>("/admin/sub-admins/candidates"),
+  });
+}
+
+export function useAdminCreateSubAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input, reauthToken }: { input: CreateSubAdminInput; reauthToken: string }) =>
+      post<AdminUserDTO>("/admin/sub-admins", input, { "x-reauth-token": reauthToken }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "sub-admins"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "sub-admin-candidates"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useAdminUpdateSubAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+      reauthToken,
+    }: {
+      id: string;
+      input: UpdateSubAdminInput;
+      reauthToken: string;
+    }) => patch<AdminUserDTO>(`/admin/sub-admins/${id}`, input, { "x-reauth-token": reauthToken }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "sub-admins"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useAdminRemoveSubAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reauthToken }: { id: string; reauthToken: string }) => {
+      await del<null>(`/admin/sub-admins/${id}`, {}, { "x-reauth-token": reauthToken });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "sub-admins"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "sub-admin-candidates"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
   });
 }
 
@@ -88,7 +160,8 @@ export function useAdminUpdateUser() {
 // tab — confirms the caller's own password before the update mutation runs.
 export function useVerifyPassword() {
   return useMutation({
-    mutationFn: (password: string) => post<null>("/auth/password/verify", { password }),
+    mutationFn: (password: string) =>
+      post<{ reauthToken: string }>("/auth/password/verify", { password }),
   });
 }
 
@@ -178,7 +251,10 @@ export function useAdminUpdateInspection() {
 export function useAdminCrmBoard(pipelineStage = "") {
   return useQuery({
     queryKey: ["admin", "crm", pipelineStage],
-    queryFn: () => get<AdminCrmEventDTO[]>(`/admin/crm${pipelineStage ? `?pipelineStage=${pipelineStage}` : ""}`),
+    queryFn: () =>
+      get<AdminCrmEventDTO[]>(
+        `/admin/crm${pipelineStage ? `?pipelineStage=${pipelineStage}` : ""}`,
+      ),
   });
 }
 
@@ -221,7 +297,9 @@ export function useAdminLogs(page: number, action = "") {
   return useQuery({
     queryKey: ["admin", "logs", page, action],
     queryFn: () =>
-      get<PaginatedResultDTO<AdminAuditLogDTO>>(`/admin/logs?page=${page}&limit=50${action ? `&action=${action}` : ""}`),
+      get<PaginatedResultDTO<AdminAuditLogDTO>>(
+        `/admin/logs?page=${page}&limit=50${action ? `&action=${action}` : ""}`,
+      ),
   });
 }
 
@@ -297,5 +375,119 @@ export function useAdminPreviewPrompt() {
   return useMutation({
     mutationFn: ({ key, input }: { key: string; input: AdminPreviewPromptInput }) =>
       post<AdminPromptPreviewDTO>(`/admin/prompts/${key}/preview`, input),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Blog Management
+// ---------------------------------------------------------------------------
+
+export function useAdminBlogPosts(page: number, status?: string, category?: string) {
+  return useQuery({
+    queryKey: ["admin", "blog", page, status, category],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (status) params.set("status", status);
+      if (category) params.set("category", category);
+      return get<PaginatedResultDTO<BlogPostDTO>>(`/admin/blog?${params.toString()}`);
+    },
+  });
+}
+
+export function useAdminCreateBlogPost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AdminBlogPostInput) => post<BlogPostDTO>("/admin/blog", input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+  });
+}
+
+export function useAdminUpdateBlogPost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminBlogPostUpdateInput }) =>
+      patch<BlogPostDTO>(`/admin/blog/${id}`, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+  });
+}
+
+export function useAdminDeleteBlogPost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del<null>(`/admin/blog/${id}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+  });
+}
+
+export function useAdminUploadBlogMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminBlogMediaUploadInput }) =>
+      post<BlogPostDTO>(`/admin/blog/${id}/media`, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+  });
+}
+
+export function useAdminPublishBlogPost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminPublishBlogPostInput }) =>
+      post<{ post: BlogPostDTO; newsletterDispatched: boolean; newsletterResult: unknown }>(
+        `/admin/blog/${id}/publish`,
+        input,
+      ),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Newsletter Management
+// ---------------------------------------------------------------------------
+
+export function useAdminNewsletterSubscribers(page: number, status?: string) {
+  return useQuery({
+    queryKey: ["admin", "newsletter", page, status],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (status) params.set("status", status);
+      return get<
+        PaginatedResultDTO<NewsletterSubscriberDTO> & {
+          counts: { confirmed: number; pending: number; unsubscribed: number; total: number };
+        }
+      >(`/admin/newsletter?${params.toString()}`);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Contact Messages Inbox
+// ---------------------------------------------------------------------------
+
+export function useAdminContactMessages(page: number, status?: string) {
+  return useQuery({
+    queryKey: ["admin", "contact-messages", page, status],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (status) params.set("status", status);
+      return get<PaginatedResultDTO<ContactMessageDTO>>(
+        `/admin/contact-messages?${params.toString()}`,
+      );
+    },
+  });
+}
+
+export function useAdminUpdateContactMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminUpdateContactMessageInput }) =>
+      patch<ContactMessageDTO>(`/admin/contact-messages/${id}`, input),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ["admin", "contact-messages"] }),
   });
 }

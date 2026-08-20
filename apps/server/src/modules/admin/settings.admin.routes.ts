@@ -3,6 +3,7 @@ import { adminUpdateSettingsSchema } from "@forth-urban/validation";
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { getSettings, updateSettings } from "../settings/index.js";
 
 /**
@@ -22,7 +23,7 @@ settingsAdminRouter.get("/", async (_req, res, next) => {
   }
 });
 
-settingsAdminRouter.patch("/", validateBody(adminUpdateSettingsSchema), async (req, res, next) => {
+settingsAdminRouter.patch("/", requireAdminPermission("settings", "write"), validateBody(adminUpdateSettingsSchema), async (req, res, next) => {
   try {
     const data = await updateSettings(req.body);
 

@@ -3,10 +3,12 @@ import type { AdminPromptDTO } from "@forth-urban/shared-types";
 import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from "@forth-urban/ui";
 import { useAdminPreviewPrompt, useAdminPrompts, useAdminUpdatePrompt } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 
 /** Editor for a single prompt. Keyed by `prompt.key` from the parent so switching the selected prompt
  *  remounts this component and re-initializes `body` fresh from props — no effect-driven sync needed. */
-function PromptEditor({ prompt }: { prompt: AdminPromptDTO }) {
+function PromptEditor({ prompt, canWrite }: { prompt: AdminPromptDTO; canWrite: boolean }) {
   const updatePrompt = useAdminUpdatePrompt();
   const previewPrompt = useAdminPreviewPrompt();
   const [body, setBody] = React.useState(prompt.body);
@@ -18,11 +20,12 @@ function PromptEditor({ prompt }: { prompt: AdminPromptDTO }) {
       <textarea
         className="min-h-[220px] rounded-md border border-[#181818]/20 bg-white p-3 font-mono text-xs"
         value={body}
+        disabled={!canWrite}
         onChange={(e) => setBody(e.target.value)}
       />
       <div className="flex justify-end">
         <Button
-          disabled={updatePrompt.isPending}
+          disabled={!canWrite || updatePrompt.isPending}
           onClick={() => updatePrompt.mutate({ key: prompt.key, input: { body } })}
         >
           {updatePrompt.isPending ? "Saving…" : "Save (bumps version)"}
@@ -69,6 +72,8 @@ function PromptEditor({ prompt }: { prompt: AdminPromptDTO }) {
 /** Versioned Markdown prompt editor + preview — AGENTS.md rule #1: prompts never hardcoded in code. */
 export function AdminPromptsPage() {
   const { data, isLoading } = useAdminPrompts();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "prompts");
   const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
 
   const selected = data?.find((p) => p.key === selectedKey);
@@ -102,7 +107,7 @@ export function AdminPromptsPage() {
             <CardTitle>{selected ? `${selected.key} (v${selected.version})` : "Select a prompt"}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {selected && <PromptEditor key={selected.key} prompt={selected} />}
+            {selected && <PromptEditor key={selected.key} prompt={selected} canWrite={canWrite} />}
           </CardContent>
         </Card>
       </div>

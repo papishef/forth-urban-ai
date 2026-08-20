@@ -3,6 +3,8 @@ import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input
 import type { AreaPreference } from "@forth-urban/validation";
 import { useAdminAreas, useAdminDeleteArea, useAdminUpsertArea } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 
 const PREFERENCE_KEYS: AreaPreference[] = [
   "premiumLiving",
@@ -18,6 +20,8 @@ export function AdminAreasPage() {
   const { data, isLoading } = useAdminAreas();
   const upsertArea = useAdminUpsertArea();
   const deleteArea = useAdminDeleteArea();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "areas");
   const [drafts, setDrafts] = React.useState<Record<string, { areaName: string; description: string }>>({});
 
   const areaByKey = new Map((data ?? []).map((a) => [a.preferenceKey, a]));
@@ -47,6 +51,7 @@ export function AdminAreasPage() {
                   <Input
                     id={`area-${key}`}
                     value={draft.areaName}
+                    disabled={!canWrite}
                     onChange={(e) => setDrafts((prev) => ({ ...prev, [key]: { ...draft, areaName: e.target.value } }))}
                   />
                 </div>
@@ -55,6 +60,7 @@ export function AdminAreasPage() {
                   <Input
                     id={`desc-${key}`}
                     value={draft.description}
+                      disabled={!canWrite}
                     onChange={(e) =>
                       setDrafts((prev) => ({ ...prev, [key]: { ...draft, description: e.target.value } }))
                     }
@@ -62,7 +68,7 @@ export function AdminAreasPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    disabled={!draft.areaName}
+                    disabled={!canWrite || !draft.areaName}
                     isLoading={upsertArea.isPending && upsertArea.variables?.preferenceKey === key}
                     onClick={() =>
                       upsertArea.mutate({ preferenceKey: key, areaName: draft.areaName, description: draft.description })
@@ -74,6 +80,7 @@ export function AdminAreasPage() {
                     <Button
                       variant="secondary"
                       isLoading={deleteArea.isPending && deleteArea.variables === existing.id}
+                      disabled={!canWrite}
                       onClick={() => deleteArea.mutate(existing.id)}
                     >
                       Reset

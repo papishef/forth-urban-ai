@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { CircleUserRound } from "lucide-react";
 import { Button, MotionCard, CardContent, CardDescription, CardHeader, CardTitle, PageTransition, Logo } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../quiz/quiz-api";
@@ -29,7 +30,9 @@ export function DashboardPage() {
         <div className="mx-auto flex max-w-4xl flex-col gap-8 relative z-10">
           <header className="flex items-center justify-between bg-white/30 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-white/40 sticky top-4 z-20">
             <div className="gap-3">
-              <Logo className="h-8" />
+              <Link to="/" className="inline-block transition-transform hover:scale-105" title="Return to Home">
+                <Logo className="h-8" />
+              </Link>
               <br />
               <div>
                 <p className="text-sm font-medium text-[#181818]/70">Welcome back, {user?.firstName ?? "there"}.</p>
@@ -37,6 +40,12 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center gap-3 lg:gap-4">
               <NotificationBell />
+              <Link to="/profile">
+                <Button variant="secondary" size="sm" className="bg-white/60">
+                  <CircleUserRound className="h-4 w-4" />
+                  Profile
+                </Button>
+              </Link>
               <Button variant="secondary" size="sm" onClick={() => logout()} className="bg-white/60">
                 Log out
               </Button>

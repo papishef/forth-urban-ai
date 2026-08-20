@@ -3,6 +3,7 @@ import { adminAreaInputSchema } from "@forth-urban/validation";
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { deleteArea, listAreas, upsertArea } from "../areas/index.js";
 
 /**
@@ -22,7 +23,7 @@ areasAdminRouter.get("/", async (_req, res, next) => {
   }
 });
 
-areasAdminRouter.post("/", validateBody(adminAreaInputSchema), async (req, res, next) => {
+areasAdminRouter.post("/", requireAdminPermission("areas", "write"), validateBody(adminAreaInputSchema), async (req, res, next) => {
   try {
     const data = await upsertArea(req.body);
 
@@ -42,16 +43,17 @@ areasAdminRouter.post("/", validateBody(adminAreaInputSchema), async (req, res, 
   }
 });
 
-areasAdminRouter.delete("/:id", async (req, res, next) => {
+areasAdminRouter.delete("/:id", requireAdminPermission("areas", "write"), async (req, res, next) => {
   try {
-    await deleteArea(req.params.id);
+    const areaId = req.params.id as string;
+    await deleteArea(areaId);
 
     await recordAuditLog({
       actorId: req.auth!.sub,
       actorType: "admin",
       action: "admin.area.deleted",
       targetType: "Area",
-      targetId: req.params.id,
+      targetId: areaId,
     });
 
     const body: ApiEnvelope = { success: true, message: "Area removed", data: null, errors: null };

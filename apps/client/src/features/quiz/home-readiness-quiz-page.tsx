@@ -154,7 +154,7 @@ export function HomeReadinessQuizPage() {
         />
 
         <div className="mx-auto flex w-full max-w-xl flex-col gap-6 relative z-10">
-          <Link to="/dashboard" className="self-start">
+          <Link to="/" className="self-start">
             <Logo className="h-7" />
           </Link>
           <div className="mb-4">

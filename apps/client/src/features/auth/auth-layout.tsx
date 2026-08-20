@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MotionCard, CardContent, CardHeader, CardTitle, CardDescription, PageTransition, Logo } from "@forth-urban/ui";
+import { MarketingHeader } from "../marketing/components/marketing-header";
+import { MarketingFooter } from "../marketing/components/marketing-footer";
 
 export function AuthLayout({
   title,
@@ -16,7 +18,12 @@ export function AuthLayout({
 }) {
   return (
     <PageTransition>
-      <div className="flex min-h-screen bg-gradient-to-br from-[#FFECE4] to-[#fce3d6] overflow-hidden">
+      <div className="flex min-h-screen flex-col bg-gradient-to-br from-[#FFECE4] to-[#fce3d6]">
+        <div className="md:hidden">
+          <MarketingHeader />
+        </div>
+
+        <main className="flex flex-1 lg:overflow-hidden">
         
         {/* Left Side: Premium Image Carousel / Branding banner (Hidden on Mobile) */}
         <div className="hidden w-1/2 lg:flex relative items-end p-12 overflow-hidden bg-[#5C4033]">
@@ -86,6 +93,12 @@ export function AuthLayout({
               </CardContent>
             </MotionCard>
           </motion.div>
+        </div>
+
+        </main>
+
+        <div className="md:hidden">
+          <MarketingFooter compact />
         </div>
 
       </div>

@@ -50,7 +50,7 @@ export function HomeReadinessResultPage() {
         <div className="absolute bottom-0 left-0 -m-32 h-[500px] w-[500px] rounded-full bg-white/50 blur-[100px] mix-blend-overlay" />
 
         <div className="mx-auto flex max-w-xl flex-col gap-6 relative z-10 pt-8">
-          <Link to="/dashboard" className="self-start">
+          <Link to="/" className="self-start">
             <Logo className="h-7" />
           </Link>
           <motion.div

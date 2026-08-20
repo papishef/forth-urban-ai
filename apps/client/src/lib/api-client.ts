@@ -19,10 +19,36 @@ export function getAccessToken(): string | null {
 // (Render) are on unrelated domains, so a cookie set by the API response is
 // never visible to document.cookie run on the client's origin. The server
 // mirrors the token in the auth response body instead; store that copy here.
-let csrfToken: string | null = null;
+// Unlike the access token, this nonce is not an authentication credential. It
+// is persisted solely so a full browser navigation can bootstrap the refresh
+// cookie again without weakening the CSRF check on /auth/refresh.
+const CSRF_STORAGE_KEY = "forth-urban.csrf-token";
+
+function readStoredCsrfToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(CSRF_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+let csrfToken: string | null = readStoredCsrfToken();
 
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
+  if (typeof window === "undefined") return;
+
+  try {
+    if (token) {
+      window.localStorage.setItem(CSRF_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(CSRF_STORAGE_KEY);
+    }
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts; the
+    // in-memory value still keeps SPA navigation working in that case.
+  }
 }
 
 // Lets AuthProvider react when a request definitively fails auth (session
@@ -34,6 +60,12 @@ let onSessionExpired: (() => void) | null = null;
 
 export function setSessionExpiredHandler(handler: (() => void) | null): void {
   onSessionExpired = handler;
+}
+
+let onAdminAccessDenied: (() => void) | null = null;
+
+export function setAdminAccessDeniedHandler(handler: (() => void) | null): void {
+  onAdminAccessDenied = handler;
 }
 
 export const apiClient = axios.create({
@@ -82,6 +114,9 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
     if (error.response?.status !== 401 || !originalRequest) {
+      if (error.response?.status === 403 && /\/admin\//.test(originalRequest?.url ?? "")) {
+        onAdminAccessDenied?.();
+      }
       return Promise.reject(error);
     }
 

@@ -55,6 +55,30 @@ export const verifyPasswordSchema = z.object({
 });
 export type VerifyPasswordInput = z.infer<typeof verifyPasswordSchema>;
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const userProfileUpdateSchema = z
+  .object({
+    firstName: z.string().trim().min(1, "First name is required").max(60).optional(),
+    lastName: z.string().trim().min(1, "Last name is required").max(60).optional(),
+    whatsappNumber: z.string().trim().max(20).nullable().optional(),
+    currentCity: z.string().trim().max(120).nullable().optional(),
+    currentCountry: z.string().trim().max(120).nullable().optional(),
+    isDiaspora: z.boolean().optional(),
+  })
+  .strict();
+export type UserProfileUpdateInput = z.infer<typeof userProfileUpdateSchema>;
+
 export const googleAuthSchema = z.object({
   idToken: z.string().min(1, "Google ID token is required"),
 });
@@ -227,22 +251,89 @@ export type InspectionBookingInput = z.infer<typeof inspectionBookingInputSchema
 /**
  * Phase 7: Admin dashboard input schemas. See
  * docs/IMPLEMENTATION_PLAN.md#phase-7--admin-dashboard. Every `/api/admin/*`
- * route is gated to `role=admin` (enforced by middleware, not by these
- * schemas), but every route still gets its own Zod schema per AGENTS.md
- * rule #4.
+ * route is gated by the current user's owner or menu grant (enforced by
+ * middleware, not by these schemas), but every route still gets its own Zod
+ * schema per AGENTS.md rule #4.
  */
 
-export const userRoleSchema = z.enum(["user", "admin", "sales"]);
+export const userRoleSchema = z.enum(["user", "admin"]);
 export type UserRoleInput = z.infer<typeof userRoleSchema>;
 
 export const userStatusSchema = z.enum(["active", "suspended"]);
 export type UserStatusInput = z.infer<typeof userStatusSchema>;
 
-export const adminUpdateUserSchema = z.object({
-  role: userRoleSchema.optional(),
-  status: userStatusSchema.optional(),
-});
+export const adminUpdateUserSchema = z
+  .object({
+    status: userStatusSchema.optional(),
+  })
+  .strict();
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
+const adminMenuKeySchema = z.enum([
+  "inspections",
+  "crm",
+  "contact-messages",
+  "users",
+  "properties",
+  "blog",
+  "newsletter",
+  "email-campaigns",
+  "analytics",
+  "settings",
+  "areas",
+  "prompts",
+  "logs",
+]);
+
+const adminMenuPermissionSchema = z
+  .object({
+    read: z.boolean(),
+    write: z.boolean(),
+  })
+  .strict()
+  .transform((value) => ({ read: value.read || value.write, write: value.write }));
+
+export const adminMenuPermissionsSchema = z
+  .record(adminMenuKeySchema, adminMenuPermissionSchema)
+  .superRefine((permissions, ctx) => {
+    for (const [menu, permission] of Object.entries(permissions)) {
+      if (["users", "newsletter", "email-campaigns", "analytics", "logs"].includes(menu) && permission.write) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [menu, "write"],
+          message: "This menu is read-only for sub-admins",
+        });
+      }
+    }
+  });
+export type AdminMenuPermissionsInput = z.input<typeof adminMenuPermissionsSchema>;
+export type AdminMenuPermissionsOutput = z.output<typeof adminMenuPermissionsSchema>;
+
+const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Enter a valid user id");
+const subAdminTitleSchema = z.string().trim().min(1, "A sub-admin title is required").max(80);
+
+export const createSubAdminSchema = z
+  .object({
+    userId: objectIdSchema,
+    title: subAdminTitleSchema,
+    permissions: adminMenuPermissionsSchema,
+  })
+  .strict();
+export type CreateSubAdminInput = z.infer<typeof createSubAdminSchema>;
+
+export const updateSubAdminSchema = z
+  .object({
+    title: subAdminTitleSchema.optional(),
+    permissions: adminMenuPermissionsSchema.optional(),
+    status: userStatusSchema.optional(),
+  })
+  .strict()
+  .refine((value) => value.title !== undefined || value.permissions !== undefined || value.status !== undefined, {
+    message: "Provide a title, permissions, or status change",
+  });
+export type UpdateSubAdminInput = z.infer<typeof updateSubAdminSchema>;
+
+export const removeSubAdminSchema = z.object({}).default({});
 
 export const developmentStatusSchema = z.enum(["serviced", "developing", "planned", "completed"]);
 export type DevelopmentStatusInput = z.infer<typeof developmentStatusSchema>;
@@ -410,3 +501,87 @@ export const trackEventSchema = z.object({
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 export type TrackEventInput = z.infer<typeof trackEventSchema>;
+
+/**
+ * Marketing Website Layer schemas: Contact Form, Newsletter, and Blog.
+ */
+
+export const contactReasonSchema = z.enum(["general", "buying", "site-inspection", "partnership", "other"]);
+export type ContactReasonInput = z.infer<typeof contactReasonSchema>;
+
+export const contactMessageSchema = z.object({
+  name: z.string().trim().min(2, "Please enter your name").max(100, "Name is too long"),
+  email: emailSchema,
+  phone: z.string().trim().max(30).optional().nullable(),
+  reason: contactReasonSchema,
+  message: z.string().trim().min(10, "Message must be at least 10 characters").max(3000, "Message is too long"),
+  // Honeypot field for spam prevention — bots fill this, real users don't see it
+  companyWebsite: z.string().optional().nullable(),
+});
+export type ContactMessageInput = z.infer<typeof contactMessageSchema>;
+
+export const adminUpdateContactMessageSchema = z.object({
+  status: z.enum(["new", "read", "archived"]),
+});
+export type AdminUpdateContactMessageInput = z.infer<typeof adminUpdateContactMessageSchema>;
+
+export const newsletterSubscribeSchema = z.object({
+  email: emailSchema,
+  // Honeypot field for spam prevention
+  websiteUrl: z.string().optional().nullable(),
+});
+export type NewsletterSubscribeInput = z.infer<typeof newsletterSubscribeSchema>;
+
+export const blogCategorySchema = z.enum([
+  "Market Insights",
+  "Investment Guides",
+  "Legal & Due Diligence",
+  "Company News",
+  "Area Spotlights",
+]);
+export type BlogCategoryInput = z.infer<typeof blogCategorySchema>;
+
+export const blogStatusSchema = z.enum(["draft", "published"]);
+export type BlogStatusInput = z.infer<typeof blogStatusSchema>;
+
+export const adminBlogPostInputSchema = z.object({
+  title: z.string().trim().min(3, "Title is required").max(200, "Title is too long"),
+  // Blank string means "auto-generate from title" — treat it the same as omitted rather than failing min(3)/regex.
+  slug: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z
+      .string()
+      .trim()
+      .min(3, "Slug must be at least 3 characters")
+      .max(200)
+      .regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase alphanumeric characters and hyphens")
+      .optional(),
+  ),
+  excerpt: z.string().trim().min(10, "Excerpt is required").max(500, "Excerpt is too long"),
+  bodyMarkdown: z.string().trim().min(20, "Post content is required"),
+  // Blank string means "no cover image yet" — treat it the same as null rather than failing url().
+  coverImageUrl: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().url("Invalid cover image URL").optional().nullable(),
+  ),
+  category: blogCategorySchema,
+  tags: z.array(z.string().trim().min(1).max(50)).default([]),
+  status: blogStatusSchema.default("draft"),
+  seoTitle: z.string().trim().max(100).optional().nullable(),
+  seoDescription: z.string().trim().max(250).optional().nullable(),
+});
+export type AdminBlogPostInput = z.infer<typeof adminBlogPostInputSchema>;
+
+export const adminBlogPostUpdateSchema = adminBlogPostInputSchema.partial();
+export type AdminBlogPostUpdateInput = z.infer<typeof adminBlogPostUpdateSchema>;
+
+export const adminPublishBlogPostSchema = z.object({
+  sendNewsletter: z.boolean().default(false),
+});
+export type AdminPublishBlogPostInput = z.infer<typeof adminPublishBlogPostSchema>;
+
+export const adminBlogMediaUploadSchema = z.object({
+  mimeType: z.string().trim().min(1),
+  base64Data: z.string().trim().min(1, "File data is required"),
+});
+export type AdminBlogMediaUploadInput = z.infer<typeof adminBlogMediaUploadSchema>;

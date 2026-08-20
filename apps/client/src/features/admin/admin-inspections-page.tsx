@@ -3,6 +3,8 @@ import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle } from
 import type { InspectionBookingStatus } from "@forth-urban/shared-types";
 import { useAdminInspections, useAdminUpdateInspection } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 
 const STATUSES: InspectionBookingStatus[] = ["pending", "confirmed", "completed", "cancelled"];
 
@@ -11,6 +13,8 @@ export function AdminInspectionsPage() {
   const [status, setStatus] = React.useState("");
   const { data, isLoading } = useAdminInspections(page, status);
   const updateInspection = useAdminUpdateInspection();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "inspections");
 
   return (
     <AdminLayout title="Inspections">
@@ -52,22 +56,26 @@ export function AdminInspectionsPage() {
                   {booking.preferredTime} · {booking.inspectionType}
                 </p>
               </div>
-              <select
-                className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-sm"
-                value={booking.status}
-                onChange={(e) =>
-                  updateInspection.mutate({
-                    id: booking.id,
-                    input: { status: e.target.value as InspectionBookingStatus },
-                  })
-                }
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              {canWrite ? (
+                <select
+                  className="rounded-md border border-[#181818]/20 bg-white px-2 py-1 text-sm"
+                  value={booking.status}
+                  onChange={(e) =>
+                    updateInspection.mutate({
+                      id: booking.id,
+                      input: { status: e.target.value as InspectionBookingStatus },
+                    })
+                  }
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="rounded-full bg-[#FFECE4] px-2.5 py-1 text-xs font-medium capitalize text-[#5C4033]">{booking.status}</span>
+              )}
             </div>
           ))}
         </CardContent>

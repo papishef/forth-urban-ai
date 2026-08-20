@@ -26,6 +26,81 @@
   .glass-panel {
     @apply bg-white/20 backdrop-blur-lg border border-white/30;
   }
+
+  /* Liquid Glass UI Utility Layer */
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 8px 32px 0 rgba(92, 64, 51, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .liquid-glass-dark {
+    background: rgba(24, 24, 24, 0.65);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .liquid-glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.25) 100%);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 10px 30px -5px rgba(92, 64, 51, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .liquid-glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -10px rgba(92, 64, 51, 0.14), inset 0 1px 2px rgba(255, 255, 255, 1);
+  }
+
+  .liquid-glass-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass-sheen::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      60deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 70%
+    );
+    transform: rotate(30deg) translateY(-100%);
+    transition: transform 0.75s ease-in-out;
+    pointer-events: none;
+  }
+
+  .liquid-glass-sheen:hover::after {
+    transform: rotate(30deg) translateY(100%);
+  }
+
+  .glass-pill {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 10px rgba(92, 64, 51, 0.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass-card:hover {
+    transform: none;
+  }
+  .liquid-glass-sheen::after {
+    display: none;
+  }
 }
 
 body {

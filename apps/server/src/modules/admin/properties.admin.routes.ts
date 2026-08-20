@@ -10,6 +10,7 @@ import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
 import { deleteMediaByUrl, uploadMedia, type MediaKind } from "../../lib/cloudinary.util.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { Property, toPropertyDTO } from "../properties/index.js";
 
 /**
@@ -61,7 +62,7 @@ propertiesAdminRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-propertiesAdminRouter.post("/", validateBody(adminPropertyInputSchema), async (req, res, next) => {
+propertiesAdminRouter.post("/", requireAdminPermission("properties", "write"), validateBody(adminPropertyInputSchema), async (req, res, next) => {
   try {
     const property = await Property.create(req.body);
 
@@ -80,7 +81,7 @@ propertiesAdminRouter.post("/", validateBody(adminPropertyInputSchema), async (r
   }
 });
 
-propertiesAdminRouter.patch("/:id", validateBody(adminPropertyUpdateSchema), async (req, res, next) => {
+propertiesAdminRouter.patch("/:id", requireAdminPermission("properties", "write"), validateBody(adminPropertyUpdateSchema), async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) throw new ApiError(404, "Property not found");
@@ -104,7 +105,7 @@ propertiesAdminRouter.patch("/:id", validateBody(adminPropertyUpdateSchema), asy
   }
 });
 
-propertiesAdminRouter.delete("/:id", async (req, res, next) => {
+propertiesAdminRouter.delete("/:id", requireAdminPermission("properties", "write"), async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) throw new ApiError(404, "Property not found");
@@ -133,7 +134,7 @@ propertiesAdminRouter.delete("/:id", async (req, res, next) => {
  * `upload_stream` already takes a raw `Buffer`, decoded here). See
  * ../../lib/cloudinary.util.ts.
  */
-propertiesAdminRouter.post("/:id/media", validateBody(adminMediaUploadSchema), async (req, res, next) => {
+propertiesAdminRouter.post("/:id/media", requireAdminPermission("properties", "write"), validateBody(adminMediaUploadSchema), async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) throw new ApiError(404, "Property not found");
@@ -178,7 +179,7 @@ propertiesAdminRouter.post("/:id/media", validateBody(adminMediaUploadSchema), a
  * Used by the admin edit form so photos/videos/documents staged before this
  * feature existed can still be cleaned up without recreating the property.
  */
-propertiesAdminRouter.delete("/:id/media", validateBody(adminMediaDeleteSchema), async (req, res, next) => {
+propertiesAdminRouter.delete("/:id/media", requireAdminPermission("properties", "write"), validateBody(adminMediaDeleteSchema), async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) throw new ApiError(404, "Property not found");

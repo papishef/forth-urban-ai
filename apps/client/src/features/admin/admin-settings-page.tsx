@@ -2,6 +2,8 @@ import * as React from "react";
 import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@forth-urban/ui";
 import { useAdminSettings, useAdminUpdateSettings } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 
 /**
  * Short, human-readable explanations shown under each setting's label —
@@ -40,9 +42,11 @@ function SettingDescription({ text }: { text: string }) {
 function SettingsForm({
   initialWeights,
   initialRoi,
+  canWrite,
 }: {
   initialWeights: Record<string, number>;
   initialRoi: Record<string, number>;
+  canWrite: boolean;
 }) {
   const updateSettings = useAdminUpdateSettings();
   const [weights, setWeights] = React.useState(initialWeights);
@@ -70,6 +74,7 @@ function SettingsForm({
                 id={`weight-${key}`}
                 type="number"
                 value={value}
+                disabled={!canWrite}
                 onChange={(e) => setWeights((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
               />
             </div>
@@ -91,6 +96,7 @@ function SettingsForm({
                 type="number"
                 step="0.01"
                 value={value}
+                disabled={!canWrite}
                 onChange={(e) => setRoi((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
               />
             </div>
@@ -99,7 +105,7 @@ function SettingsForm({
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={onSave} disabled={updateSettings.isPending}>
+        <Button onClick={onSave} disabled={!canWrite || updateSettings.isPending}>
           {updateSettings.isPending ? "Saving…" : "Save settings"}
         </Button>
       </div>
@@ -110,6 +116,8 @@ function SettingsForm({
 /** ROI assumption defaults + property-matching rule weights editor — Decision Engine consumes these directly, no redeploy needed. */
 export function AdminSettingsPage() {
   const { data, isLoading } = useAdminSettings();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "settings");
 
   return (
     <AdminLayout title="Settings">
@@ -119,6 +127,7 @@ export function AdminSettingsPage() {
         <SettingsForm
           initialWeights={data.propertyMatchWeights as Record<string, number>}
           initialRoi={data.roiAssumptionDefaults as unknown as Record<string, number>}
+          canWrite={canWrite}
         />
       )}
     </AdminLayout>

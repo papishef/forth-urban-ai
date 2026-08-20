@@ -4,6 +4,7 @@ import type { AdminPromptDTO, AdminPromptPreviewDTO, AIPromptKey } from "@forth-
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
+import { requireAdminPermission } from "../auth/permissions.js";
 import { PROMPT_KEYS, getRawPrompt, savePrompt } from "../ai-advisory/prompt-loader.js";
 import { getAiAdvisoryService } from "../ai-advisory/ai-advisory.service.js";
 
@@ -50,7 +51,7 @@ promptsAdminRouter.get("/:key", (req, res, next) => {
   }
 });
 
-promptsAdminRouter.patch("/:key", validateBody(adminUpdatePromptSchema), async (req, res, next) => {
+promptsAdminRouter.patch("/:key", requireAdminPermission("prompts", "write"), validateBody(adminUpdatePromptSchema), async (req, res, next) => {
   try {
     const parsed = adminPromptKeySchema.safeParse(req.params.key);
     if (!parsed.success) throw new ApiError(404, "Unknown prompt key");

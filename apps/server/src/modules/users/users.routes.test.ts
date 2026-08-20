@@ -41,4 +41,16 @@ describe("users routes", () => {
     expect(res.body.data.currentCity).toBe("Abuja");
     expect(res.body.data.isDiaspora).toBe(true);
   });
+
+  it("rejects attempts to update role or other protected account fields", async () => {
+    const app = createApp();
+    const token = await registerAndGetToken(app);
+
+    const res = await request(app)
+      .patch("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ role: "admin", passwordHash: "not-a-hash" });
+
+    expect(res.status).toBe(400);
+  });
 });

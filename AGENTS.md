@@ -71,5 +71,6 @@ forth-urban-ai/
 - Functional/product requirements: [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)
 - Technical architecture, data flow, schema, API surface: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Phased build plan with exit criteria: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
+- Marketing website & public layer architecture: [docs/WEBSITE_PLAN.md](docs/WEBSITE_PLAN.md)
 
 Original product PDF: `Forth Urban Ai Property Consultation System (2).pdf` (kept for reference; `docs/PRODUCT_SPEC.md` is the canonical, agent-readable version of it).

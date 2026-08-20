@@ -32,7 +32,7 @@ export function AreaQuizResultPage() {
   return (
     <div className="min-h-screen bg-[#FFECE4] px-4 py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-6">
-        <Link to="/dashboard">
+        <Link to="/">
           <Logo className="h-7" />
         </Link>
         <Card>

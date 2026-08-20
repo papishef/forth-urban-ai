@@ -3,10 +3,11 @@
 // pattern), which trips react-refresh's "only export components" rule.
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
+import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthResponse, UserDTO } from "@forth-urban/shared-types";
 import type { LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
-import { apiClient, setAccessToken, setCsrfToken, setSessionExpiredHandler } from "./api-client";
+import { apiClient, setAccessToken, setAdminAccessDeniedHandler, setCsrfToken, setSessionExpiredHandler } from "./api-client";
 import { identifyAnalyticsUser, resetAnalytics } from "./analytics";
 
 interface ApiEnvelope<T> {
@@ -24,9 +25,25 @@ interface AuthContextValue {
   verifyOtp: (input: OtpVerifyInput) => Promise<UserDTO>;
   requestOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (user: UserDTO) => void;
+  applyAuthResponse: (data: AuthResponse) => UserDTO;
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
+
+let initialRefreshPromise: Promise<AuthResponse | null> | null = null;
+
+function restoreSession(): Promise<AuthResponse | null> {
+  initialRefreshPromise ??= apiClient
+    .post<ApiEnvelope<AuthResponse>>("/auth/refresh")
+    .then((res) => res.data.data)
+    .catch(() => null)
+    .finally(() => {
+      initialRefreshPromise = null;
+    });
+
+  return initialRefreshPromise;
+}
 
 function applyAuthResponse(data: AuthResponse) {
   setAccessToken(data.tokens.accessToken);
@@ -57,18 +74,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setSessionExpiredHandler(null);
   }, [queryClient]);
 
+  // Refetches /users/me to pick up out-of-band changes (e.g. an owner
+  // revoking/editing admin access while the sub-admin's tab stays open).
+  // Only a definitive 401/403 clears the session — transient network
+  // errors must not log the user out.
+  const syncCurrentUser = React.useCallback(() => {
+    void apiClient
+      .get<ApiEnvelope<UserDTO>>("/users/me")
+      .then((res) => {
+        if (res.data.data) {
+          setUser(res.data.data);
+          queryClient.setQueryData(["users", "me"], res.data.data);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isAxiosError(error) || ![401, 403].includes(error.response?.status ?? 0)) return;
+        setAccessToken(null);
+        setCsrfToken(null);
+        setUser(null);
+        resetAnalytics();
+        queryClient.clear();
+      });
+  }, [queryClient]);
+
+  React.useEffect(() => {
+    if (!user) return undefined;
+    window.addEventListener("focus", syncCurrentUser);
+    return () => window.removeEventListener("focus", syncCurrentUser);
+  }, [syncCurrentUser, user?.id]);
+
+  React.useEffect(() => {
+    setAdminAccessDeniedHandler(syncCurrentUser);
+    return () => setAdminAccessDeniedHandler(null);
+  }, [syncCurrentUser]);
+
   // On first load, attempt a silent refresh using the httpOnly cookie so a
   // page reload doesn't force the user to log in again.
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/refresh");
-        if (!cancelled && res.data.data) {
-          setUser(applyAuthResponse(res.data.data));
+        const data = await restoreSession();
+        if (!cancelled && data) {
+          setUser(applyAuthResponse(data));
         }
-      } catch {
-        // No valid session — that's a normal logged-out state.
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -130,6 +179,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyOtp: (input) => verifyOtpMutation.mutateAsync(input),
     requestOtp: (email) => requestOtpMutation.mutateAsync(email).then(() => undefined),
     logout: () => logoutMutation.mutateAsync(),
+    updateUser: (nextUser) => setUser(nextUser),
+    applyAuthResponse: (data) => {
+      const nextUser = applyAuthResponse(data);
+      setUser(nextUser);
+      return nextUser;
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

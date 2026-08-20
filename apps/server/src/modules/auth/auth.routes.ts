@@ -8,6 +8,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyPasswordSchema,
+  changePasswordSchema,
 } from "@forth-urban/validation";
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -150,8 +151,25 @@ authRouter.post("/password/reset", validateBody(resetPasswordSchema), async (req
 // their own password before the calling code proceeds with the mutation.
 authRouter.post("/password/verify", requireAuth, validateBody(verifyPasswordSchema), async (req, res, next) => {
   try {
-    await authService.verifyPassword(req.auth!.sub, req.body.password);
-    const body: ApiEnvelope = { success: true, message: "Password verified", data: null, errors: null };
+    const reauthToken = await authService.verifyPassword(req.auth!.sub, req.body.password);
+    const body: ApiEnvelope = { success: true, message: "Password verified", data: { reauthToken }, errors: null };
+    res.json(body);
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/password/change", requireAuth, validateBody(changePasswordSchema), async (req, res, next) => {
+  try {
+    const { authResponse, refreshToken } = await authService.changePassword(req.auth!.sub, req.body, requestMeta(req));
+    setRefreshCookie(res, refreshToken);
+    const csrfToken = issueCsrfCookie(res);
+    const body: ApiEnvelope = {
+      success: true,
+      message: "Password updated",
+      data: withCsrfToken(authResponse, csrfToken),
+      errors: null,
+    };
     res.json(body);
   } catch (err) {
     next(err);

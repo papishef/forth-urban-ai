@@ -6,6 +6,7 @@ import { loginSchema, type LoginInput } from "@forth-urban/validation";
 import { Button, Input, Label } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { getErrorMessage } from "../../lib/api-error";
+import { getAdminLandingPath } from "../../lib/admin-access";
 import { AuthLayout } from "./auth-layout";
 
 export function LoginPage() {
@@ -22,11 +23,7 @@ export function LoginPage() {
     setServerError(null);
     try {
       const user = await login(values);
-      if (user?.role === "admin" || user?.role === "sales") {
-        navigate("/admin/inspections");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate(getAdminLandingPath(user));
     } catch (err) {
       setServerError(getErrorMessage(err, "Invalid email or password"));
     }

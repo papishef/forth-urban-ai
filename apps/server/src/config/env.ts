@@ -49,7 +49,8 @@ const envSchema = z.object({
   // format without "+" (e.g. "2348012345678"); if unset, generated wa.me
   // links omit the number and let the user pick a contact instead of failing.
   SALES_WHATSAPP_NUMBER: z.string().optional(),
-  SALES_NOTIFICATION_EMAIL: z.string().default("sales@forthurban.ai"),
+  SALES_NOTIFICATION_EMAIL: z.string().default("info@forthurban.com"),
+  ADMIN_NOTIFICATION_EMAIL: z.string().default("info@forthurban.com"),
   QUIZ_ABANDONMENT_REMINDER_HOURS: z.coerce.number().default(48),
   // Cron jobs (abandoned-quiz nurture emails) are disabled in the test env so
   // Vitest runs don't spin up a background scheduler; enabled everywhere else.

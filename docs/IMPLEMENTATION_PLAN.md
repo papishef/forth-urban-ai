@@ -109,11 +109,17 @@ Exit criteria: booking an inspection persists data, sends a confirmation email, 
 
 ## Phase 7 — Admin dashboard
 
-Tasks (frontend `apps/client` under an `/admin` route guarded by `role=admin`, backend `modules/admin`):
+Tasks (frontend `apps/client` under an `/admin` route guarded by owner or current-user menu grants, backend `modules/admin`):
 - Users list/detail, Properties CRUD (with Cloudinary uploads), Quiz analytics (funnel drop-off, band distribution charts via Chart.js), Inspection bookings management (status changes, reassignment), lightweight CRM board (pipeline/kanban-style), Email campaign view (sent/opened/clicked via `emailEvents`), ROI assumptions editor (writes to the settings doc consumed by Decision Engine — no redeploy needed to change rates), Hidden cost rules editor per property, Area management (drives the Area Quiz logic instead of hardcoded areas), Property matching rule weights, Lead pipeline view, System/audit logs viewer, Admin user management, general Settings.
 - AI prompt editor: view/edit prompt Markdown + version bump, with a preview call against a sample context before publishing.
 
 Exit criteria: an admin can, without a code deploy, add a property, change ROI default rates, edit a prompt version, and see the funnel analytics reflecting Phase 1–6 data.
+
+### Authorization extension — owner-managed sub-admins
+
+The admin surface now has two persisted roles only: the single owner `admin` and `user`. A user may receive an embedded owner-managed grant with a custom title and per-menu read/write permissions. The server resolves the current User document on every authenticated request, so permissions are not placed in JWTs and revocation is effective on the next request. The owner manages grants through `/api/admin/sub-admins` and the Team & access page; removing every menu suspends the account, while removing the grant restores a regular active user without deleting funnel or historical sales-assignment data.
+
+Client login, OTP, Google OAuth, marketing CTAs, direct admin URLs, and customer routes all use the same landing/access resolver. Read-only sub-admins can view granted data but do not receive mutation controls. Team mutations require a short-lived, single-use server re-authentication token issued after password confirmation. The profile settings page is available to every authenticated user and includes validated account edits plus current-password password changes with session rotation.
 
 ---
 

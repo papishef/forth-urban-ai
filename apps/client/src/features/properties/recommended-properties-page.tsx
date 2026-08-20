@@ -221,7 +221,7 @@ export function RecommendedPropertiesPage() {
              transition={{ duration: 0.5 }}
              className="bg-white/40 backdrop-blur-md rounded-2xl p-6 border border-white/50 shadow-sm relative"
           >
-            <Link to="/dashboard" className="mb-3 inline-block">
+            <Link to="/" className="mb-3 inline-block">
               <Logo className="h-7" />
             </Link>
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="absolute top-2 right-2 text-[#181818]/60 hover:text-[#181818]">

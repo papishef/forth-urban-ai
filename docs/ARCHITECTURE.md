@@ -167,7 +167,7 @@ Every collection includes `createdAt`, `updatedAt`, `deletedAt` (soft delete), `
 
 | Collection | Key fields |
 |---|---|
-| `users` | firstName, lastName, email (unique), passwordHash?, authProvider (local/google), googleId?, emailVerified, whatsappNumber, currentCity, currentCountry, isDiaspora, role (user/admin/sales), status |
+| `users` | firstName, lastName, email (unique), passwordHash?, authProvider (local/google), googleId?, emailVerified, whatsappNumber, currentCity, currentCountry, isDiaspora, role (`user`/owner `admin`), status, adminAccess? {title, ownerId, permissions {menu: {read, write}}, grantedAt, updatedAt} |
 | `profiles` | userId (ref), buyerGoal, budgetRange {min,max}, monthlyIncome, paymentStyle, timeline, preferredArea, lifestylePreference, biggestFear, inspectionPreference, buyerPersona, leadCategory, readinessScore |
 | `quizResponses` | userId (ref), quizType (homeReadiness/area), answers[{questionKey, answer}], readinessScore, resultType, completedAt |
 | `properties` | name, estateName, location {address, landmarks, lat, lng}, pricePerPlot, plotSizes[], titleType, documentationStatus, paymentPlans[], bestFitBuyerTypes[], developmentStatus, inspectionAvailability {physical, virtual}, hiddenCostRules[], roiAssumptions {conservative, moderate, optimistic}, media {photos[], videos[], googleMapsUrl, brochureUrl, titleDocuments[]}, isActive |
@@ -196,7 +196,15 @@ Full ERD lives in `docs/ERD.md` (generate via `scripts/generate-erd.ts` once mod
 | Properties | `GET /api/properties`, `GET /api/properties/:id` |
 | Inspections | `POST /api/inspections`, `GET /api/inspections/me` |
 | Events | `POST /api/events` (forwards to PostHog + `auditLogs`) |
-| Admin | `/api/admin/users`, `/api/admin/leads`, `/api/admin/properties`, `/api/admin/crm`, `/api/admin/email-campaigns`, `/api/admin/prompts`, `/api/admin/roi-assumptions`, `/api/admin/hidden-costs`, `/api/admin/areas`, `/api/admin/settings` |
+| Admin | `/api/admin/users`, `/api/admin/sub-admins`, `/api/admin/properties`, `/api/admin/crm`, `/api/admin/email-campaigns`, `/api/admin/prompts`, `/api/admin/areas`, `/api/admin/settings` |
+
+### Authorization model
+
+There are only two persisted roles: `admin` (the single owner account) and `user` (every customer and converted sub-admin). A converted user remains `role=user` and receives an embedded `adminAccess` grant owned by the admin account. The grant stores a custom title and read/write capabilities for each admin menu; write always implies read, and Users, Newsletter, Email Campaigns, Analytics, and Logs are read-only for sub-admins.
+
+The server loads the current User document during authentication and checks the current grant on every protected admin request. Menu permissions are deliberately not copied into JWTs, so revocation, suspension, and conversion take effect on the next request even when an old access token is still present. The owner alone can create, edit, suspend, reactivate, or remove sub-admin grants through `/api/admin/sub-admins`; those mutations require a short-lived, single-use re-authentication token issued after password confirmation.
+
+Removing every menu suspends the account and revokes its sessions. Removing the grant restores an active regular user without deleting profile, inspection, CRM, or historical sales-assignment data. The `sales` terminology that remains in CRM/inspection fields describes the business follow-up function, not an authorization role.
 
 All responses use the consistent envelope: `{ success: boolean, message: string, data: T | null, errors: unknown[] | null }`, enforced by centralized error-handling middleware.
 

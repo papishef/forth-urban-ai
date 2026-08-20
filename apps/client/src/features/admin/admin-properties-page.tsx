@@ -7,6 +7,8 @@ import { Badge, Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle
 import type { PropertyDTO } from "@forth-urban/shared-types";
 import { AlertTriangle, CheckCircle2, Eye, FileText, ImagePlus, Loader2, Pencil, Plus, ShieldCheck, ShieldOff, Sparkles, Trash2, X } from "lucide-react";
 import { getErrorMessage } from "../../lib/api-error";
+import { canWriteAdminMenu } from "../../lib/admin-access";
+import { useAuth } from "../../lib/auth-context";
 import {
   useAdminCreateProperty,
   useAdminDeleteProperty,
@@ -244,6 +246,8 @@ export function AdminPropertiesPage() {
   const uploadMedia = useAdminUploadPropertyMedia();
   const deleteMedia = useAdminDeletePropertyMedia();
   const verifyPassword = useVerifyPassword();
+  const { user } = useAuth();
+  const canWrite = canWriteAdminMenu(user, "properties");
 
   const {
     register,
@@ -318,7 +322,7 @@ export function AdminPropertiesPage() {
   // the thumbnail disappears immediately (the panel's list of existing
   // photos reads from this state, not the refetched query).
   const removeExistingPhoto = async (url: string) => {
-    if (!editingProperty) return;
+    if (!editingProperty || !canWrite) return;
     setDeletingPhotoUrl(url);
     try {
       const updated = await deleteMedia.mutateAsync({ id: editingProperty.id, input: { field: "photos", url } });
@@ -370,6 +374,7 @@ export function AdminPropertiesPage() {
   };
 
   const onSubmit = handleSubmit(async (values) => {
+    if (!canWrite) return;
     const payload: AdminPropertyInput = {
       ...values,
       features: featureInputs.map((f) => f.trim()).filter(Boolean),
@@ -440,13 +445,15 @@ export function AdminPropertiesPage() {
 
   return (
     <AdminLayout title="Properties">
-      <div className="mb-4 flex justify-end">
-        <Button onClick={() => (showForm ? closeForm() : openCreateForm())}>
-          {showForm ? "Cancel" : "Add property"}
-        </Button>
-      </div>
+      {canWrite && (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={() => (showForm ? closeForm() : openCreateForm())}>
+            {showForm ? "Cancel" : "Add property"}
+          </Button>
+        </div>
+      )}
 
-      {showForm && (
+      {showForm && canWrite && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{editingProperty ? `Edit ${editingProperty.name}` : "New property"}</CardTitle>
@@ -570,15 +577,17 @@ export function AdminPropertiesPage() {
                               isDeleting ? "opacity-40" : ""
                             }`}
                           />
-                          <button
-                            type="button"
-                            onClick={() => removeExistingPhoto(url)}
-                            disabled={isDeleting}
-                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#181818] text-white shadow-sm transition hover:bg-red-600 disabled:pointer-events-none"
-                            aria-label="Delete photo"
-                          >
-                            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => removeExistingPhoto(url)}
+                              disabled={isDeleting}
+                              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#181818] text-white shadow-sm transition hover:bg-red-600 disabled:pointer-events-none"
+                              aria-label="Delete photo"
+                            >
+                              {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -683,21 +692,25 @@ export function AdminPropertiesPage() {
                   <Eye className="h-4 w-4" />
                   View
                 </Button>
-                <Button variant="secondary" onClick={() => openEditForm(property)}>
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setPendingAction({ type: "toggleActive", property })}
-                >
-                  {property.isActive ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-                  {property.isActive ? "Deactivate" : "Activate"}
-                </Button>
-                <Button variant="secondary" onClick={() => setPendingAction({ type: "delete", property })}>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
+                {canWrite && (
+                  <>
+                    <Button variant="secondary" onClick={() => openEditForm(property)}>
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setPendingAction({ type: "toggleActive", property })}
+                    >
+                      {property.isActive ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                      {property.isActive ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button variant="secondary" onClick={() => setPendingAction({ type: "delete", property })}>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           ))}
