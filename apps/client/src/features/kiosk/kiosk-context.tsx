@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useReducer } from "react";
+import React, { useCallback, useReducer } from "react";
 import type { KioskSession, KioskFormData } from "./types.js";
+import { KioskContext } from "./use-kiosk.js";
 
 interface KioskContextType {
   session: KioskSession;
@@ -63,8 +64,6 @@ function kioskReducer(state: KioskSession, action: KioskAction): KioskSession {
   }
 }
 
-export const KioskContext = createContext<KioskContextType | undefined>(undefined);
-
 export function KioskProvider({ children }: { children: React.ReactNode }) {
   const [session, dispatch] = useReducer(kioskReducer, initialSession);
 
@@ -103,12 +102,4 @@ export function KioskProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;
-}
-
-export function useKiosk(): KioskContextType {
-  const context = useContext(KioskContext);
-  if (!context) {
-    throw new Error("useKiosk must be used within KioskProvider");
-  }
-  return context;
 }

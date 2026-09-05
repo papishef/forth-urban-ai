@@ -22,9 +22,10 @@ attendanceKioskRouter.get("/staff-search", async (req, res, next) => {
   }
 });
 
-attendanceKioskRouter.get("/open-logs", async (_req, res, next) => {
+attendanceKioskRouter.get("/open-logs", async (req, res, next) => {
   try {
-    const logs = await getOpenAttendanceLogs();
+    const search = typeof req.query.q === "string" ? req.query.q.trim() : undefined;
+    const logs = await getOpenAttendanceLogs(undefined, search);
     const data = logs.map((log) => ({
       _id: log._id,
       type: log.type,

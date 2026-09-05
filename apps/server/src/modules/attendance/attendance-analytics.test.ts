@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
+import type { Types } from "mongoose";
 import {
   calculateDwellStats,
   detectPeakHours,
   calculateNoShowRate,
   detectAnomalies,
-  generateDailyTrend,
   generateAnalyticsSnapshot,
-} from "./attendance-analytics";
+} from "./attendance-analytics.js";
 import type { AttendanceLogDocument } from "./attendance-log.model.js";
 
 describe("Attendance Analytics", () => {
   // Mock log data for testing
   const createMockLog = (overrides?: Partial<AttendanceLogDocument>): AttendanceLogDocument => ({
-    _id: { toString: () => "log-id" } as any,
+    _id: { toString: () => "log-id" } as unknown as Types.ObjectId,
     type: "visitor",
     visitorName: "Test Visitor",
     checkInTime: new Date("2024-01-15T09:00:00Z"),
@@ -25,7 +25,7 @@ describe("Attendance Analytics", () => {
     deletedAt: null,
     version: 0,
     ...overrides,
-  } as any);
+  } as unknown as AttendanceLogDocument);
 
   describe("calculateDwellStats", () => {
     it("should calculate correct dwell time statistics", () => {
@@ -75,8 +75,8 @@ describe("Attendance Analytics", () => {
 
       const peakHours = detectPeakHours(logs);
 
-      expect(peakHours[0].hour).toBe(9);
-      expect(peakHours[0].checkInCount).toBe(3);
+      expect(peakHours[0]!.hour).toBe(9);
+      expect(peakHours[0]!.checkInCount).toBe(3);
     });
 
     it("should return top 3 peak hours", () => {
@@ -96,15 +96,15 @@ describe("Attendance Analytics", () => {
     it("should calculate no-show percentage for inspections", () => {
       const logs = [
         createMockLog({
-          linkedInspectionId: { toString: () => "insp-1" } as any,
+          linkedInspectionId: { toString: () => "insp-1" } as unknown as Types.ObjectId,
           isNoShow: true,
         }),
         createMockLog({
-          linkedInspectionId: { toString: () => "insp-2" } as any,
+          linkedInspectionId: { toString: () => "insp-2" } as unknown as Types.ObjectId,
           isNoShow: false,
         }),
         createMockLog({
-          linkedInspectionId: { toString: () => "insp-3" } as any,
+          linkedInspectionId: { toString: () => "insp-3" } as unknown as Types.ObjectId,
           isNoShow: false,
         }),
       ];
@@ -156,7 +156,7 @@ describe("Attendance Analytics", () => {
     it("should flag no-shows", () => {
       const logs = [
         createMockLog({
-          linkedInspectionId: { toString: () => "insp-1" } as any,
+          linkedInspectionId: { toString: () => "insp-1" } as unknown as Types.ObjectId,
           isNoShow: true,
         }),
       ];
@@ -172,7 +172,7 @@ describe("Attendance Analytics", () => {
       const logs = [
         createMockLog({
           type: "staff",
-          staffId: { toString: () => "staff-1" } as any,
+          staffId: { toString: () => "staff-1" } as unknown as Types.ObjectId,
           durationMinutes: 60,
           checkInTime: new Date("2024-01-15T09:00:00Z"),
         }),

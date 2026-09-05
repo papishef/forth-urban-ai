@@ -1,6 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../../lib/api-client.js";
 
+interface DailyTrendEntry {
+  date: string;
+  checkInCount: number;
+  uniqueVisitors: number;
+  avgDwellMinutes: number;
+  noShowCount: number;
+}
+
+interface AnalyticsSnapshot {
+  peakHour?: { hour: number; checkInCount: number } | null;
+  noShowRate?: number;
+  dailyTrend?: DailyTrendEntry[];
+}
+
 export function AnalyticsDashboardTab({
   dateRange,
 }: {
@@ -19,9 +33,9 @@ export function AnalyticsDashboardTab({
     },
   });
 
-  const stats = data?.data || {};
+  const stats: AnalyticsSnapshot = data?.data || {};
   const dailyTrend = [...(stats.dailyTrend || [])].sort(
-    (first: any, second: any) => new Date(second.date).getTime() - new Date(first.date).getTime(),
+    (first, second) => new Date(second.date).getTime() - new Date(first.date).getTime(),
   );
 
   if (isLoading) return <div>Loading analytics...</div>;
@@ -64,7 +78,7 @@ export function AnalyticsDashboardTab({
               </tr>
             </thead>
             <tbody>
-              {dailyTrend.map((day: any, idx: number) => (
+              {dailyTrend.map((day, idx: number) => (
                 <tr
                   key={idx}
                   style={{

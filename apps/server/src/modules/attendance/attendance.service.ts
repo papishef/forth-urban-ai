@@ -141,9 +141,10 @@ export async function listAttendanceLogs(
   const query: Record<string, unknown> = {};
 
   if (filters?.startDate || filters?.endDate) {
-    query.checkInTime = {};
-    if (filters.startDate) (query.checkInTime as any).$gte = filters.startDate;
-    if (filters.endDate) (query.checkInTime as any).$lte = filters.endDate;
+    const checkInTime: { $gte?: Date; $lte?: Date } = {};
+    if (filters.startDate) checkInTime.$gte = filters.startDate;
+    if (filters.endDate) checkInTime.$lte = filters.endDate;
+    query.checkInTime = checkInTime;
   }
 
   if (filters?.type) query.type = filters.type;
@@ -187,28 +188,37 @@ export async function flagNoShows(): Promise<number> {
 }
 
 /**
- * Delete an attendance log (soft delete)
+ * Fetch open/pending attendance log entries (for quick check-out).
+ * `search` matches visitor name directly, or staff name/email/badge via a
+ * Staff lookup — without this, the kiosk checkout search only ever saw the
+ * 10 most-recently-checked-in entries and couldn't find anyone checked in
+ * earlier once more than 10 people were on-site.
  */
-export async function deleteAttendanceLog(id: string): Promise<void> {
-  const log = await AttendanceLog.findById(id);
-  if (!log) throw new ApiError(404, "Attendance log not found");
-
-  log.deletedAt = new Date();
-  await log.save();
-}
-
-/**
- * Fetch open/pending attendance log entries (for quick check-out)
- */
-export async function getOpenAttendanceLogs(staffId?: string): Promise<AttendanceLogDocument[]> {
+export async function getOpenAttendanceLogs(staffId?: string, search?: string): Promise<AttendanceLogDocument[]> {
   const query: Record<string, unknown> = { checkOutTime: null };
   if (staffId) query.staffId = staffId;
+
+  if (search) {
+    const matchingStaff = await Staff.find({
+      $or: [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { badgeId: { $regex: search, $options: "i" } },
+      ],
+    }).select("_id");
+
+    query.$or = [
+      { visitorName: { $regex: search, $options: "i" } },
+      { staffId: { $in: matchingStaff.map((s) => s._id) } },
+    ];
+  }
 
   return AttendanceLog.find(query)
     .populate("staffId", "firstName lastName email")
     .populate("linkedInspectionId", "propertyId recommendedArea")
     .sort({ checkInTime: -1 })
-    .limit(10);
+    .limit(search ? 50 : 10);
 }
 
 /**

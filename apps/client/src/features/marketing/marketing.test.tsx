@@ -28,7 +28,7 @@ vi.mock("framer-motion", () => ({
           whileTap: _whileTap,
           ...rest
         }: React.ComponentPropsWithoutRef<"div"> & Record<string, unknown>) => {
-          const Tag = (prop || "div") as any;
+          const Tag = (prop || "div") as React.ElementType;
           return <Tag {...rest}>{children}</Tag>;
         };
         return Component;

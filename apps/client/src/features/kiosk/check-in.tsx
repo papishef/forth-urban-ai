@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
-import { useKiosk } from "./kiosk-context.js";
+import { useKiosk } from "./use-kiosk.js";
 import type { CheckInInput } from "@forth-urban/validation";
 import { playKioskErrorSound, playKioskSuccessSound } from "./kiosk-feedback";
 import { API_BASE_URL } from "../../lib/api-client.js";
@@ -233,7 +233,7 @@ export const CheckInComponent = CheckInScreen;
 
 function StaffLookupForm({ onSelect }: { onSelect: (staffId: string, name: string) => void }) {
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<{ _id: string; firstName: string; lastName: string; department?: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleSearch = async (query: string) => {

@@ -193,7 +193,7 @@ describe("Attendance Admin Routes", () => {
         "2024-01-15,John Doe,Staff,Sales,09:00:00,10:00:00,60,office work,N/A,\n";
 
       const lines = csvContent.split("\n");
-      const headers = lines[0].split(",");
+      const headers = lines[0]!.split(",");
 
       expect(headers).toContain("Date");
       expect(headers).toContain("Name");
@@ -209,7 +209,7 @@ describe("Attendance Admin Routes", () => {
       const userWithoutPermission = { role: "user" };
       const adminUser = { role: "admin" };
 
-      const hasPermission = (user: any) => user.role === "admin";
+      const hasPermission = (user: { role: string }) => user.role === "admin";
 
       expect(hasPermission(userWithoutPermission)).toBe(false);
       expect(hasPermission(adminUser)).toBe(true);

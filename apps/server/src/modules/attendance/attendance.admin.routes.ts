@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { checkInInputSchema, checkOutInputSchema, staffInputSchema, staffUpdateSchema } from "@forth-urban/validation";
-import type { ApiEnvelope, PaginatedResultDTO } from "../../middleware/error-handler.js";
+import type { PaginatedResultDTO } from "@forth-urban/shared-types";
+import type { ApiEnvelope } from "../../middleware/error-handler.js";
 import { ApiError } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
@@ -17,15 +18,11 @@ import {
   getAttendanceLog,
   listAttendanceLogs,
   flagNoShows,
-  deleteAttendanceLog,
   searchStaff,
 } from "./attendance.service.js";
 import {
   generateAnalyticsSnapshot,
   detectAnomalies,
-  generateDailyTrend,
-  calculateNoShowRate,
-  detectPeakHours,
 } from "./attendance-analytics.js";
 import { AttendanceLog } from "./attendance-log.model.js";
 
@@ -69,7 +66,7 @@ attendanceAdminRouter.get("/staff", requireAdminPermission("attendance", "read")
 
     const { items, total } = await listStaff(filters, page, limit);
 
-    const data: PaginatedResultDTO = { items, total, page, limit };
+    const data: PaginatedResultDTO<typeof items[number]> = { items, total, page, limit };
     const body: ApiEnvelope = { success: true, message: "OK", data, errors: null };
     res.json(body);
   } catch (err) {
@@ -105,7 +102,8 @@ attendanceAdminRouter.post("/staff", requireAdminPermission("attendance", "write
  */
 attendanceAdminRouter.get("/staff/:id", requireAdminPermission("attendance", "read"), async (req, res, next) => {
   try {
-    const staff = await getStaff(req.params.id);
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    const staff = await getStaff(id);
     const body: ApiEnvelope = { success: true, message: "OK", data: staff, errors: null };
     res.json(body);
   } catch (err) {
@@ -134,7 +132,8 @@ attendanceAdminRouter.patch(
   validateBody(staffUpdateSchema),
   async (req, res, next) => {
     try {
-      const staff = await updateStaff(req.params.id, req.body);
+      const id = typeof req.params.id === "string" ? req.params.id : "";
+      const staff = await updateStaff(id, req.body);
 
       await recordAuditLog({
         actorId: req.auth!.sub,
@@ -158,14 +157,15 @@ attendanceAdminRouter.patch(
  */
 attendanceAdminRouter.delete("/staff/:id", requireAdminPermission("attendance", "write"), async (req, res, next) => {
   try {
-    await deleteStaff(req.params.id);
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    await deleteStaff(id);
 
     await recordAuditLog({
       actorId: req.auth!.sub,
       actorType: "admin",
       action: "admin.attendance.staff.deleted",
       targetType: "Staff",
-      targetId: req.params.id,
+      targetId: id,
     });
 
     const body: ApiEnvelope = { success: true, message: "Staff member deleted", data: null, errors: null };
@@ -233,7 +233,8 @@ attendanceAdminRouter.patch(
   validateBody(checkOutInputSchema),
   async (req, res, next) => {
     try {
-      const log = await checkOut(req.params.logId, req.body.notes);
+      const logId = typeof req.params.logId === "string" ? req.params.logId : "";
+      const log = await checkOut(logId, req.body.notes);
 
       await recordAuditLog({
         actorId: req.auth?.sub || "kiosk",
@@ -270,17 +271,17 @@ attendanceAdminRouter.get("/logs", requireAdminPermission("attendance", "read"),
 
     const { page, limit } = parsePagination(req.query as Record<string, unknown>);
 
-    const filters: Record<string, any> = {};
+    const filters: Parameters<typeof listAttendanceLogs>[0] = {};
     if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
     if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
-    if (req.query.type) filters.type = req.query.type;
-    if (req.query.status) filters.status = req.query.status;
-    if (req.query.purpose) filters.purpose = req.query.purpose;
-    if (req.query.assignedSalesRep) filters.assignedSalesRep = req.query.assignedSalesRep;
+    if (req.query.type) filters.type = req.query.type as "staff" | "visitor";
+    if (req.query.status) filters.status = req.query.status as "checked-out" | "no-show" | "pending";
+    if (req.query.purpose) filters.purpose = req.query.purpose as string;
+    if (req.query.assignedSalesRep) filters.assignedSalesRep = req.query.assignedSalesRep as string;
 
     const { items, total } = await listAttendanceLogs(filters, page, limit);
 
-    const data: PaginatedResultDTO = { items, total, page, limit };
+    const data: PaginatedResultDTO<typeof items[number]> = { items, total, page, limit };
     const body: ApiEnvelope = { success: true, message: "OK", data, errors: null };
     res.json(body);
   } catch (err) {
@@ -293,30 +294,9 @@ attendanceAdminRouter.get("/logs", requireAdminPermission("attendance", "read"),
  */
 attendanceAdminRouter.get("/:logId", requireAdminPermission("attendance", "read"), async (req, res, next) => {
   try {
-    const log = await getAttendanceLog(req.params.logId);
+    const logId = typeof req.params.logId === "string" ? req.params.logId : "";
+    const log = await getAttendanceLog(logId);
     const body: ApiEnvelope = { success: true, message: "OK", data: log, errors: null };
-    res.json(body);
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * DELETE /api/admin/attendance/:logId — Soft delete attendance log
- */
-attendanceAdminRouter.delete("/:logId", requireAdminPermission("attendance", "write"), async (req, res, next) => {
-  try {
-    await deleteAttendanceLog(req.params.logId);
-
-    await recordAuditLog({
-      actorId: req.auth!.sub,
-      actorType: "admin",
-      action: "admin.attendance.log.deleted",
-      targetType: "AttendanceLog",
-      targetId: req.params.logId,
-    });
-
-    const body: ApiEnvelope = { success: true, message: "Log deleted", data: null, errors: null };
     res.json(body);
   } catch (err) {
     next(err);
@@ -391,9 +371,11 @@ attendanceAdminRouter.get("/report", requireAdminPermission("attendance", "read"
     // Generate CSV
     const headers = ["Date", "Name", "Type", "Department", "Check-In", "Check-Out", "Duration (mins)", "Purpose", "Sales Rep", "Notes"];
     const rows = logs.map((log) => {
-      const name = log.type === "staff" ? `${(log.staffId as any)?.firstName} ${(log.staffId as any)?.lastName}` : log.visitorName;
-      const dept = log.type === "staff" ? (log.staffId as any)?.department : "Visitor";
-      const salesRep = (log.assignedSalesRep as any)?.firstName ? `${(log.assignedSalesRep as any).firstName} ${(log.assignedSalesRep as any).lastName}` : "N/A";
+      const staff = log.staffId as unknown as { firstName?: string; lastName?: string; department?: string } | null;
+      const salesRepRef = log.assignedSalesRep as unknown as { firstName?: string; lastName?: string } | null;
+      const name = log.type === "staff" ? `${staff?.firstName} ${staff?.lastName}` : log.visitorName;
+      const dept = log.type === "staff" ? staff?.department : "Visitor";
+      const salesRep = salesRepRef?.firstName ? `${salesRepRef.firstName} ${salesRepRef.lastName}` : "N/A";
 
       return [
         log.checkInTime.toISOString().split("T")[0],
@@ -409,8 +391,16 @@ attendanceAdminRouter.get("/report", requireAdminPermission("attendance", "read"
       ];
     });
 
-    // Create CSV content
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
+    // Create CSV content. Cells hold free-text user input (notes, visitor
+    // name, purpose), so quotes must be doubled per RFC 4180 and any
+    // leading =/+/-/@ neutralized so spreadsheet apps don't treat it as a
+    // formula (CSV/formula injection).
+    const csvCell = (value: unknown) => {
+      let cell = String(value ?? "");
+      if (/^[=+\-@]/.test(cell)) cell = `'${cell}`;
+      return `"${cell.replace(/"/g, '""')}"`;
+    };
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", `attachment; filename="attendance-report-${Date.now()}.csv"`);

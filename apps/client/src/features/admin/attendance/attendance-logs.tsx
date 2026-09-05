@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2, Edit } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 import { SkeletonGlass } from "@forth-urban/ui";
 import { apiFetch } from "../../../lib/api-client.js";
 
@@ -19,10 +19,8 @@ interface AttendanceLog {
 
 export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end: Date } }) {
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, _setLimit] = useState(20);
   const [filter, setFilter] = useState({ type: "", status: "", purpose: "" });
-  const queryClient = useQueryClient();
-
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "attendance", "logs", page, limit, filter],
     queryFn: async () => {
@@ -39,21 +37,6 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
       const response = await apiFetch(`/admin/attendance/logs?${params}`);
       if (!response.ok) throw new Error("Failed to fetch logs");
       return response.json();
-    },
-  });
-
-  const deleteLogMutation = useMutation({
-    mutationFn: async (logId: string) => {
-      const response = await apiFetch(`/admin/attendance/${logId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete log");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "attendance", "logs"],
-      });
     },
   });
 
@@ -141,7 +124,6 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               <th className="px-6 py-3 text-left text-sm font-semibold">Duration</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Purpose</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -149,7 +131,7 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               <>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={`skeleton-${i}`} style={{ borderBottom: "1px solid #E8D5C4" }}>
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={`cell-${i}-${j}`} className="px-6 py-4">
                         <SkeletonGlass className="h-4 w-full" />
                       </td>
@@ -159,7 +141,7 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               </>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center" style={{ color: "#999" }}>
+                <td colSpan={8} className="px-6 py-4 text-center" style={{ color: "#999" }}>
                   No records found
                 </td>
               </tr>
@@ -219,16 +201,6 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
                           ? "Checked Out"
                           : "Pending"}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <button
-                      onClick={() => deleteLogMutation.mutate(log._id)}
-                      disabled={deleteLogMutation.isPending}
-                      className="p-1 hover:opacity-60"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} style={{ color: "#C00" }} />
-                    </button>
                   </td>
                 </tr>
               ))

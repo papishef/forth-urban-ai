@@ -2,7 +2,7 @@ import { Download } from "lucide-react";
 import { apiFetch } from "../../../lib/api-client.js";
 
 export function ReportsTab({
-  dateRange,
+  dateRange: _dateRange,
 }: {
   dateRange: { start: Date; end: Date };
 }) {

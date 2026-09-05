@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { useKiosk } from "./kiosk-context.js";
+import { useKiosk } from "./use-kiosk.js";
 
 export function SuccessScreen() {
   const { session, reset } = useKiosk();

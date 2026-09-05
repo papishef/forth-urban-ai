@@ -7,6 +7,7 @@ import { AnalyticsDashboardTab } from "./analytics-dashboard";
 import { AnomaliesViewTab } from "./anomalies-view";
 import { ReportsTab } from "./reports-tab";
 import { apiFetch } from "../../../lib/api-client.js";
+import { AdminLayout } from "../admin-layout.js";
 
 type TabType = "logs" | "staff" | "analytics" | "anomalies" | "reports";
 
@@ -33,7 +34,8 @@ export function AttendancePage() {
   const stats = summary?.data || {};
 
   return (
-    <div className="attendance-page min-h-screen" style={{ backgroundColor: "#FFECE4" }}>
+    <AdminLayout title="Attendance Register">
+      <div className="attendance-page min-h-screen" style={{ backgroundColor: "#FFECE4" }}>
       {/* Header */}
       <div className="border-b" style={{ borderColor: "#E8D5C4" }}>
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -149,7 +151,8 @@ export function AttendancePage() {
         {activeTab === "anomalies" && <AnomaliesViewTab dateRange={dateRange} />}
         {activeTab === "reports" && <ReportsTab dateRange={dateRange} />}
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 

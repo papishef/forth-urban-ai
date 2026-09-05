@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AttendanceLogsTab } from "./attendance-logs.js";
 
+const mockDateRange = { start: new Date("2024-01-01"), end: new Date("2024-01-31") };
+
 describe("Attendance Logs Tab", () => {
   let queryClient: QueryClient;
 
@@ -14,7 +16,7 @@ describe("Attendance Logs Tab", () => {
       },
     });
 
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   const renderWithProviders = (component: React.ReactElement) => {
@@ -27,7 +29,7 @@ describe("Attendance Logs Tab", () => {
 
   describe("Table Rendering", () => {
     it("should display attendance logs table", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -54,7 +56,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       await waitFor(() => {
         expect(screen.getByText(/John Doe/)).toBeInTheDocument();
@@ -62,7 +64,7 @@ describe("Attendance Logs Tab", () => {
     });
 
     it("should display column headers", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -78,7 +80,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       await waitFor(() => {
         expect(screen.getByText(/Date/i)).toBeInTheDocument();
@@ -89,7 +91,7 @@ describe("Attendance Logs Tab", () => {
     });
 
     it("should display status badges correctly", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -136,7 +138,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       await waitFor(() => {
         expect(screen.getByText(/Checked Out/i)).toBeInTheDocument();
@@ -148,7 +150,7 @@ describe("Attendance Logs Tab", () => {
 
   describe("Filtering", () => {
     it("should filter by type", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -164,7 +166,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       const typeFilter = await screen.findByDisplayValue(/all types/i);
       fireEvent.change(typeFilter, { target: { value: "staff" } });
@@ -175,7 +177,7 @@ describe("Attendance Logs Tab", () => {
     });
 
     it("should filter by status", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -191,7 +193,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       const statusFilter = await screen.findByDisplayValue(/all status/i);
       fireEvent.change(statusFilter, { target: { value: "pending" } });
@@ -204,7 +206,7 @@ describe("Attendance Logs Tab", () => {
 
   describe("Pagination", () => {
     it("should display pagination controls", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -229,7 +231,7 @@ describe("Attendance Logs Tab", () => {
         }),
       });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       await waitFor(() => {
         expect(screen.getByText(/Showing 20 of 50/i)).toBeInTheDocument();
@@ -237,7 +239,7 @@ describe("Attendance Logs Tab", () => {
     });
 
     it("should allow changing page", async () => {
-      global.fetch = vi.fn()
+      globalThis.fetch = vi.fn()
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -291,7 +293,7 @@ describe("Attendance Logs Tab", () => {
           }),
         });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       await waitFor(() => {
         expect(screen.getByText(/John Doe/)).toBeInTheDocument();
@@ -308,7 +310,7 @@ describe("Attendance Logs Tab", () => {
 
   describe("CSV Export", () => {
     it("should download CSV report", async () => {
-      global.fetch = vi
+      globalThis.fetch = vi
         .fn()
         .mockResolvedValueOnce({
           ok: true,
@@ -331,7 +333,7 @@ describe("Attendance Logs Tab", () => {
             "Date,Name,Type,CheckIn,CheckOut,Duration\n2024-01-15,John,Staff,09:00,10:00,60\n",
         });
 
-      renderWithProviders(<AttendanceLogsTab dateRange={{} as any} />);
+      renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       const exportButton = await screen.findByRole("button", {
         name: /export csv/i,
@@ -339,7 +341,7 @@ describe("Attendance Logs Tab", () => {
       fireEvent.click(exportButton);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(globalThis.fetch).toHaveBeenCalledWith(
           "/api/admin/attendance/report"
         );
       });

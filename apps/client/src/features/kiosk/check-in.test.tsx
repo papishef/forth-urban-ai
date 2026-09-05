@@ -15,7 +15,7 @@ describe("Kiosk Check-In Component", () => {
       },
     });
 
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   const renderWithProviders = (component: React.ReactElement) => {
@@ -61,7 +61,7 @@ describe("Kiosk Check-In Component", () => {
 
   describe("Staff Search", () => {
     it("should search staff by name", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           data: [
@@ -90,7 +90,7 @@ describe("Kiosk Check-In Component", () => {
 
     it("should handle debounced search", async () => {
       vi.useFakeTimers();
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ data: [] }),
       });
@@ -109,7 +109,7 @@ describe("Kiosk Check-In Component", () => {
       vi.advanceTimersByTime(300);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
       });
 
       vi.useRealTimers();
@@ -160,7 +160,7 @@ describe("Kiosk Check-In Component", () => {
 
   describe("Check-In Submission", () => {
     it("should submit check-in and show success", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           success: true,
@@ -196,7 +196,7 @@ describe("Kiosk Check-In Component", () => {
     });
 
     it("should handle check-in errors", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({
           error: "Staff member not found",

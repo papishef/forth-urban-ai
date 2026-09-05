@@ -5,10 +5,27 @@ import { SkeletonGlass } from "@forth-urban/ui";
 import type { StaffInput } from "@forth-urban/validation";
 import { apiFetch } from "../../../lib/api-client.js";
 
+interface StaffMember {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  department: string;
+  role: string;
+  status: string;
+}
+
+interface AttendanceRecord {
+  _id: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  durationMinutes?: number;
+  purpose?: string;
+}
+
 export function StaffManagementTab() {
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
@@ -58,10 +75,11 @@ export function StaffManagementTab() {
   });
 
   const staff = data?.data?.items || [];
+  const totalStaff = data?.data?.total || 0;
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
     queryKey: ["admin", "attendance", "staff-detail", selectedStaff?._id],
     queryFn: async () => {
-      const response = await apiFetch(`/admin/attendance/staff/${selectedStaff._id}/attendance`);
+      const response = await apiFetch(`/admin/attendance/staff/${selectedStaff?._id}/attendance`);
       if (!response.ok) throw new Error("Failed to fetch staff attendance");
       return response.json();
     },
@@ -77,7 +95,6 @@ export function StaffManagementTab() {
         </h2>
         <button
           onClick={() => {
-            setEditingId(null);
             setShowForm(true);
           }}
           className="px-6 py-2 rounded-lg font-semibold flex items-center gap-2 text-white cursor-pointer"
@@ -135,7 +152,7 @@ export function StaffManagementTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {attendance.map((record: any) => (
+                  {attendance.map((record: AttendanceRecord) => (
                     <tr key={record._id} style={{ borderBottom: "1px solid #E8D5C4" }}>
                       <td className="px-3 py-2">{new Date(record.checkInTime).toLocaleDateString()}</td>
                       <td className="px-3 py-2">{new Date(record.checkInTime).toLocaleTimeString()}</td>
@@ -184,7 +201,7 @@ export function StaffManagementTab() {
                 </td>
               </tr>
             ) : (
-              staff.map((member: any) => (
+              staff.map((member: StaffMember) => (
                 <tr
                   key={member._id}
                   onClick={() => setSelectedStaff(member)}
@@ -227,6 +244,32 @@ export function StaffManagementTab() {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="mt-6 flex items-center justify-between">
+        <p className="text-sm" style={{ color: "#666" }}>
+          Showing {staff.length} of {totalStaff} staff members
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page === 1}
+            className="cursor-pointer rounded-lg border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ borderColor: "#DDD" }}
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-sm" style={{ color: "#666" }}>Page {page}</span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => current + 1)}
+            disabled={staff.length === 0 || page * 20 >= totalStaff}
+            className="cursor-pointer rounded-lg border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ borderColor: "#DDD" }}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -86,7 +86,7 @@ export function detectPeakHours(logs: AttendanceLogDocument[]): PeakHour[] {
   const hourCounts: Record<number, number> = {};
 
   logs.forEach((log) => {
-    const hour = log.checkInTime.getHours();
+    const hour = log.checkInTime.getUTCHours();
     hourCounts[hour] = (hourCounts[hour] || 0) + 1;
   });
 
@@ -152,7 +152,7 @@ export function detectAnomalies(logs: AttendanceLogDocument[]): AnomalyAlert[] {
         message: `${visitorName} has checked in ${logsToday.length} times today`,
         visitorName: String(visitorName),
         timestamp: new Date(),
-        attendanceLogId: logsToday[0]._id.toString(),
+        attendanceLogId: logsToday[0]!._id.toString(),
       });
     }
 
@@ -184,7 +184,7 @@ export function detectAnomalies(logs: AttendanceLogDocument[]): AnomalyAlert[] {
       }
 
       // Anomaly 4: Check-in outside business hours (before 7am or after 7pm)
-      const hour = log.checkInTime.getHours();
+      const hour = log.checkInTime.getUTCHours();
       if (hour < 7 || hour >= 19) {
         alerts.push({
           id: `anomaly-off-hours-${log._id}`,
@@ -219,17 +219,18 @@ export function detectAnomalies(logs: AttendanceLogDocument[]): AnomalyAlert[] {
  * Generate 30-day daily trend
  */
 export function generateDailyTrend(logs: AttendanceLogDocument[], daysBack: number = 30): DailyTrend[] {
-  const trend: Map<string, { checkIns: Set<string>; avgDwell: number[]; noShows: number }> = new Map();
+  const trend: Map<string, { totalCheckIns: number; checkIns: Set<string>; avgDwell: number[]; noShows: number }> = new Map();
 
   // Group by date
   logs.forEach((log) => {
-    const date = log.checkInTime.toISOString().split("T")[0]; // YYYY-MM-DD
+    const date = log.checkInTime.toISOString().split("T")[0]!; // YYYY-MM-DD
     if (!trend.has(date)) {
-      trend.set(date, { checkIns: new Set(), avgDwell: [], noShows: 0 });
+      trend.set(date, { totalCheckIns: 0, checkIns: new Set(), avgDwell: [], noShows: 0 });
     }
 
     const dayData = trend.get(date)!;
     const visitorKey = log.type === "staff" ? log.staffId?.toString() : log.visitorName;
+    dayData.totalCheckIns += 1;
     dayData.checkIns.add(visitorKey || "unknown");
 
     if (log.durationMinutes) dayData.avgDwell.push(log.durationMinutes);
@@ -240,7 +241,7 @@ export function generateDailyTrend(logs: AttendanceLogDocument[], daysBack: numb
   return Array.from(trend.entries())
     .map(([date, data]) => ({
       date,
-      checkInCount: data.checkIns.size,
+      checkInCount: data.totalCheckIns,
       uniqueVisitors: data.checkIns.size,
       avgDwellMinutes:
         data.avgDwell.length > 0 ? Math.round((data.avgDwell.reduce((a, b) => a + b, 0) / data.avgDwell.length) * 10) / 10 : 0,
@@ -269,7 +270,7 @@ export function generateAnalyticsSnapshot(logs: AttendanceLogDocument[]): Analyt
     uniqueStaffCount: uniqueStaff.size,
     uniqueVisitorCount: uniqueVisitors.size,
     avgDwellMinutes: dwellStats.avgDwellMinutes,
-    peakHour: peakHours.length > 0 ? peakHours[0] : null,
+    peakHour: peakHours.length > 0 ? peakHours[0]! : null,
     noShowRate,
     dailyTrend,
   };

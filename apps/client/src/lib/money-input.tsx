@@ -1,7 +1,7 @@
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 import { Input } from "@forth-urban/ui";
 
-export function formatMoneyInput(value: unknown): string {
+function formatMoneyInput(value: unknown): string {
   if (value === undefined || value === null || value === "") return "";
   const number = Number(value);
   return Number.isFinite(number) ? number.toLocaleString("en-US") : "";

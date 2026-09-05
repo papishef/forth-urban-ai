@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Button, Logo } from "@forth-urban/ui";
-import { KioskProvider, useKiosk } from "./kiosk-context.js";
+import { KioskProvider } from "./kiosk-context.js";
+import { useKiosk } from "./use-kiosk.js";
 import { CheckInScreen } from "./check-in.js";
 import { CheckOutScreen } from "./check-out.js";
 import { SuccessScreen } from "./success-screen.js";

@@ -2,6 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, AlertCircle, Info } from "lucide-react";
 import { apiFetch } from "../../../lib/api-client.js";
 
+interface AttendanceAnomaly {
+  id: string;
+  type: string;
+  severity: "critical" | "warning" | "info";
+  visitorName?: string;
+  message: string;
+  timestamp: string;
+}
+
 export function AnomaliesViewTab({
   dateRange,
 }: {
@@ -20,15 +29,17 @@ export function AnomaliesViewTab({
     },
   });
 
-  const anomalies = data?.data?.anomalies || [];
+  const anomalies: AttendanceAnomaly[] = [...(data?.data?.anomalies || [])].sort(
+    (first: AttendanceAnomaly, second: AttendanceAnomaly) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
+  );
 
   if (isLoading) return <div>Loading anomalies...</div>;
 
   const criticalAnomalies = anomalies.filter(
-    (a: any) => a.severity === "critical"
+    (a) => a.severity === "critical"
   );
-  const warningAnomalies = anomalies.filter((a: any) => a.severity === "warning");
-  const infoAnomalies = anomalies.filter((a: any) => a.severity === "info");
+  const warningAnomalies = anomalies.filter((a) => a.severity === "warning");
+  const infoAnomalies = anomalies.filter((a) => a.severity === "info");
 
   return (
     <div>
@@ -75,7 +86,7 @@ function AnomalySection({
   severity,
 }: {
   title: string;
-  anomalies: any[];
+  anomalies: AttendanceAnomaly[];
   severity: "critical" | "warning" | "info";
 }) {
   const bgColors = {
@@ -103,7 +114,7 @@ function AnomalySection({
       </h3>
 
       <div className="space-y-3">
-        {anomalies.map((anomaly: any) => (
+        {anomalies.map((anomaly) => (
           <div
             key={anomaly.id}
             className="p-4 rounded-lg"

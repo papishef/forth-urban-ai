@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
-import { useKiosk } from "./kiosk-context.js";
+import { useKiosk } from "./use-kiosk.js";
 import { playKioskErrorSound, playKioskSuccessSound } from "./kiosk-feedback";
 import { API_BASE_URL } from "../../lib/api-client.js";
 
@@ -18,7 +18,9 @@ async function readResponse(response: Response): Promise<{ message?: string; dat
 export function CheckOutScreen() {
   const { setSuccess, setError, reset } = useKiosk();
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<
+    { _id: string; visitorName?: string; checkInTime: string; staffId?: { firstName: string; lastName: string } }[]
+  >([]);
   const [loading, setLoading] = useState(false);
 
   const checkOutMutation = useMutation({
@@ -62,16 +64,10 @@ export function CheckOutScreen() {
     setLoading(true);
     try {
       // Search for open logs
-      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/open-logs`);
+      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/open-logs?q=${encodeURIComponent(query)}`);
       const data = await response.json();
-      
-      // Filter by name
-      const filtered = (data.data || []).filter((log: any) => {
-        const name = log.visitorName || (log.staffId?.firstName + " " + log.staffId?.lastName);
-        return name.toLowerCase().includes(query.toLowerCase()) && !log.checkOutTime;
-      });
 
-      setResults(filtered);
+      setResults(data.data || []);
     } catch (error) {
       console.error("Search failed:", error);
     } finally {

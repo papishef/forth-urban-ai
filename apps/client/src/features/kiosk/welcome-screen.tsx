@@ -1,4 +1,4 @@
-import { useKiosk } from "./kiosk-context.js";
+import { useKiosk } from "./use-kiosk.js";
 
 export function WelcomeScreen() {
   const { goToStep } = useKiosk();

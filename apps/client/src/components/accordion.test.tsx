@@ -1,3 +1,4 @@
+import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Accordion, type AccordionItemData } from "./accordion";
@@ -5,9 +6,11 @@ import { Accordion, type AccordionItemData } from "./accordion";
 // Mock framer-motion for deterministic jsdom test execution per react memory notes
 vi.mock("framer-motion", () => ({
   motion: {
-    div: ({ children, className }: any) => <div className={className}>{children}</div>,
+    div: ({ children, className }: PropsWithChildren<{ className?: string }>) => (
+      <div className={className}>{children}</div>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: PropsWithChildren) => <>{children}</>,
 }));
 
 const mockItems: AccordionItemData[] = [
