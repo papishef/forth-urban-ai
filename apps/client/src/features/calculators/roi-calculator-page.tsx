@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { roiCalculatorInputSchema, type RoiCalculatorInput } from "@forth-urban/validation";
 import type { RoiScenarioKey, RoiScenarioResultDTO } from "@forth-urban/shared-types";
 import { Button, MotionCard, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, PageTransition, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { useRoiCalculator } from "./calculators-api";
 import { useRoiExplanation } from "../ai-advisory/ai-advisory-api";
 import { AiExplanation } from "../ai-advisory/ai-explanation";
@@ -187,7 +188,9 @@ export function RoiCalculatorPage() {
                       <CardDescription className="uppercase tracking-wider font-semibold text-[#181818]/60 text-xs">Next Recommended Action</CardDescription>
                     </div>
                     <CardTitle className="text-2xl">{result.nextAction.action}</CardTitle>
-                    <CardDescription className="text-[#181818]/80 text-base">{result.nextAction.reason}</CardDescription>
+                    <div className="text-[#181818]/80 text-base mt-1">
+                      <MarkdownRenderer content={result.nextAction.reason} />
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <Button

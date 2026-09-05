@@ -15,6 +15,8 @@ function criticalViolations(results: Awaited<ReturnType<AxeBuilder["analyze"]>>)
 }
 
 test.describe("accessibility (axe-core, WCAG AA)", () => {
+  test.describe.configure({ timeout: 60_000 });
+
   test("landing page has no critical violations", async ({ page }) => {
     await installApiMocks(page);
     await page.goto("/");
@@ -40,6 +42,10 @@ test.describe("accessibility (axe-core, WCAG AA)", () => {
     const state: MockState = { hasCompletedQuiz: false };
     await installApiMocks(page, state);
 
+    await page.goto("/quiz/home-readiness");
+    const guestQuizResults = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
+    expect(criticalViolations(guestQuizResults)).toEqual([]);
+
     await page.goto("/register");
     await page.getByLabel("First name").fill("Jane");
     await page.getByLabel("Last name").fill("Doe");
@@ -51,7 +57,7 @@ test.describe("accessibility (axe-core, WCAG AA)", () => {
     const dashboardResults = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
     expect(criticalViolations(dashboardResults)).toEqual([]);
 
-    await page.getByRole("link", { name: /start home-readiness quiz/i }).click();
+    await page.getByRole("link", { name: /start readiness quiz/i }).click();
     await expect(page).toHaveURL(/\/quiz\/home-readiness$/);
     const quizResults = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
     expect(criticalViolations(quizResults)).toEqual([]);

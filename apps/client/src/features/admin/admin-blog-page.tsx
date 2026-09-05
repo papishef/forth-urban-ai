@@ -14,6 +14,8 @@ import {
   Eye,
   CheckCircle2,
   UploadCloud,
+  ImagePlus,
+  X,
   Tag,
   BookOpen,
 } from "lucide-react";
@@ -27,6 +29,7 @@ import {
   Textarea,
   Label,
   BuildingLoader,
+  StorageMeter,
 } from "@forth-urban/ui";
 import { AdminLayout } from "./admin-layout";
 import {
@@ -36,10 +39,35 @@ import {
   useAdminDeleteBlogPost,
   useAdminPublishBlogPost,
   useAdminUploadBlogMedia,
+  useAdminDeleteBlogMedia,
+  useAdminStorageStatus,
 } from "./admin-api";
 import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { canWriteAdminMenu } from "../../lib/admin-access";
 import { useAuth } from "../../lib/auth-context";
+import { getErrorMessage } from "../../lib/api-error";
+import { StoragePricingModal } from "./storage-pricing-modal";
+
+interface StagedCover {
+  file: File;
+  previewUrl: string;
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = (reader.result as string).split(",")[1];
+      if (!base64Data) {
+        reject(new Error("Could not read file"));
+        return;
+      }
+      resolve(base64Data);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
 
 export function AdminBlogPage() {
   const PAGE_SIZE = 20;
@@ -50,15 +78,21 @@ export function AdminBlogPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [publishModalPost, setPublishModalPost] = useState<BlogPostDTO | null>(null);
   const [sendNewsletterOnPublish, setSendNewsletterOnPublish] = useState(true);
+  const [stagedCover, setStagedCover] = useState<StagedCover | null>(null);
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [showStoragePricing, setShowStoragePricing] = useState(false);
 
   const { data, isLoading } = useAdminBlogPosts(page, statusFilter);
+  const storage = useAdminStorageStatus();
   const createMutation = useAdminCreateBlogPost();
   const updateMutation = useAdminUpdateBlogPost();
   const deleteMutation = useAdminDeleteBlogPost();
   const publishMutation = useAdminPublishBlogPost();
   const uploadMediaMutation = useAdminUploadBlogMedia();
+  const deleteMediaMutation = useAdminDeleteBlogMedia();
   const { user } = useAuth();
   const canWrite = canWriteAdminMenu(user, "blog");
+  const canManageStorage = canWriteAdminMenu(user, "settings");
 
   const {
     register,
@@ -78,12 +112,28 @@ export function AdminBlogPage() {
 
   const bodyMarkdownValue = watch("bodyMarkdown") || "";
 
+  const clearStagedCover = () => {
+    setStagedCover((previous) => {
+      if (previous) URL.revokeObjectURL(previous.previewUrl);
+      return null;
+    });
+  };
+
   const handleFilterChange = (status: string | undefined) => {
     setStatusFilter(status);
     setPage(1);
   };
 
+  const closeEditor = () => {
+    setIsEditing(false);
+    setSelectedPost(null);
+    clearStagedCover();
+    setCoverUploadError(null);
+  };
+
   const openCreate = () => {
+    clearStagedCover();
+    setCoverUploadError(null);
     setSelectedPost(null);
     reset({
       title: "",
@@ -102,6 +152,8 @@ export function AdminBlogPage() {
   };
 
   const openEdit = (post: BlogPostDTO) => {
+    clearStagedCover();
+    setCoverUploadError(null);
     setSelectedPost(post);
     reset({
       title: post.title,
@@ -121,10 +173,32 @@ export function AdminBlogPage() {
 
   const onSave = handleSubmit(async (formData) => {
     if (!canWrite) return;
+    setCoverUploadError(null);
+    let savedPost: BlogPostDTO;
     if (selectedPost) {
-      await updateMutation.mutateAsync({ id: selectedPost.id, input: formData });
+      savedPost = await updateMutation.mutateAsync({
+        id: selectedPost.id,
+        input: { ...formData, coverImageUrl: selectedPost.coverImageUrl },
+      });
     } else {
-      await createMutation.mutateAsync(formData);
+      savedPost = await createMutation.mutateAsync({ ...formData, coverImageUrl: null });
+    }
+
+    if (stagedCover) {
+      try {
+        const base64Data = await readFileAsBase64(stagedCover.file);
+        savedPost = await uploadMediaMutation.mutateAsync({
+          id: savedPost.id,
+          input: { mimeType: stagedCover.file.type, base64Data },
+        });
+        setValue("coverImageUrl", savedPost.coverImageUrl);
+        clearStagedCover();
+      } catch (err) {
+        setSelectedPost(savedPost);
+        setValue("coverImageUrl", savedPost.coverImageUrl);
+        setCoverUploadError(getErrorMessage(err, "Article saved, but the cover image upload failed. Choose the file again to retry."));
+        return;
+      }
     }
     setIsEditing(false);
     setSelectedPost(null);
@@ -146,23 +220,33 @@ export function AdminBlogPage() {
     setPublishModalPost(null);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStageCover = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedPost || !canWrite) return;
+    if (!file || !canWrite) return;
+    if (!file.type.startsWith("image/")) {
+      setCoverUploadError("Choose a JPG, PNG, or WebP image.");
+      return;
+    }
+    setCoverUploadError(null);
+    setStagedCover((previous) => {
+      if (previous) URL.revokeObjectURL(previous.previewUrl);
+      return { file, previewUrl: URL.createObjectURL(file) };
+    });
+    e.target.value = "";
+  };
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = (reader.result as string).split(",")[1];
-      const updated = await uploadMediaMutation.mutateAsync({
+  const handleRemoveCover = async () => {
+    if (!selectedPost?.coverImageUrl || !canWrite) return;
+    try {
+      const updated = await deleteMediaMutation.mutateAsync({
         id: selectedPost.id,
-        input: {
-          mimeType: file.type,
-          base64Data,
-        },
+        input: { url: selectedPost.coverImageUrl },
       });
-      setValue("coverImageUrl", updated.coverImageUrl);
-    };
-    reader.readAsDataURL(file);
+      setSelectedPost(updated);
+      setValue("coverImageUrl", null);
+    } catch (err) {
+      setCoverUploadError(getErrorMessage(err, "Cover image could not be removed."));
+    }
   };
 
   return (
@@ -213,7 +297,7 @@ export function AdminBlogPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsEditing(false)}
+                  onClick={closeEditor}
                 >
                   Cancel
                 </Button>
@@ -278,25 +362,44 @@ export function AdminBlogPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="coverImageUrl">Cover Image URL</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="coverImageUrl"
-                          placeholder="https://res.cloudinary.com/..."
-                          {...register("coverImageUrl")}
-                        />
-                        {selectedPost && (
-                          <label className="flex items-center gap-1.5 rounded-xl border border-[#5C4033]/30 bg-white px-3 py-2 text-xs font-semibold text-[#5C4033] cursor-pointer hover:bg-[#5C4033]/5 shrink-0">
-                            <UploadCloud className="h-4 w-4" />
-                            <span>Upload</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleFileUpload}
-                            />
-                          </label>
-                        )}
+                      <Label>Cover image</Label>
+                      <div className="rounded-2xl border border-dashed border-[#5C4033]/25 bg-white/55 p-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                          <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-[#5C4033]/10 bg-[#FFECE4]/60 sm:w-36">
+                            {stagedCover ? (
+                              <img src={stagedCover.previewUrl} alt="Selected cover preview" className="h-full w-full object-cover" />
+                            ) : watch("coverImageUrl") ? (
+                              <img src={watch("coverImageUrl") ?? undefined} alt="Current cover" className="h-full w-full object-cover" />
+                            ) : (
+                              <ImagePlus className="h-7 w-7 text-[#5C4033]/35" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-[#181818]">Add a visual cover</p>
+                            <p className="mt-1 text-xs leading-relaxed text-[#181818]/55">JPG, PNG, or WebP. The image is uploaded securely after you save the article.</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#5C4033]/25 bg-white px-3 py-2 text-xs font-semibold text-[#5C4033] transition hover:bg-[#5C4033]/5">
+                                <UploadCloud className="h-4 w-4" />
+                                <span>{stagedCover || watch("coverImageUrl") ? "Replace image" : "Choose image"}</span>
+                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleStageCover} />
+                              </label>
+                              {selectedPost?.coverImageUrl && !stagedCover && (
+                                <Button type="button" variant="ghost" size="sm" onClick={() => void handleRemoveCover()} disabled={deleteMediaMutation.isPending} className="gap-1.5 text-red-700">
+                                  <X className="h-3.5 w-3.5" />
+                                  Remove
+                                </Button>
+                              )}
+                              {stagedCover && (
+                                <Button type="button" variant="ghost" size="sm" onClick={clearStagedCover} className="gap-1.5">
+                                  <X className="h-3.5 w-3.5" />
+                                  Clear selection
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {coverUploadError && <p className="mt-3 text-xs font-medium text-red-700">{coverUploadError}</p>}
+                        {storage.data && <StorageMeter status={storage.data} compact onUpgrade={canManageStorage ? () => setShowStoragePricing(true) : undefined} className="mt-3" />}
                       </div>
                     </div>
                   </div>
@@ -337,7 +440,7 @@ export function AdminBlogPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => setIsEditing(false)}
+                      onClick={closeEditor}
                     >
                       Cancel
                     </Button>
@@ -579,6 +682,7 @@ export function AdminBlogPage() {
             </div>
           </div>
         )}
+        <StoragePricingModal open={showStoragePricing} onClose={() => setShowStoragePricing(false)} status={storage.data} />
       </div>
     </AdminLayout>
   );

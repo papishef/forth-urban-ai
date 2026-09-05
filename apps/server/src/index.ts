@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { connectDatabase } from "./db/connection.js";
 import { startScheduler } from "./lib/scheduler.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
+import { reconcileStorageAssets } from "./modules/billing/storage-reconciliation.service.js";
 
 async function main() {
   const app = createApp();
@@ -20,7 +21,12 @@ async function main() {
   });
 
   connectDatabase()
-    .then(() => startScheduler())
+    .then(() => {
+      void reconcileStorageAssets().catch((err) => {
+        logger.error({ err }, "Storage asset reconciliation failed");
+      });
+      startScheduler();
+    })
     .catch((err) => {
       logger.error({ err }, "Database connection failed permanently");
     });

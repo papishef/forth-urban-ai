@@ -10,7 +10,7 @@ import type { AIPromptKey } from "@forth-urban/shared-types";
  */
 export function buildFallbackText(promptKey: AIPromptKey, context: Record<string, unknown>): string {
   const nextAction = (context.nextAction as { action?: string } | undefined)?.action;
-  const actionSentence = nextAction ? ` Next recommended step: ${nextAction}.` : "";
+  const actionSentence = nextAction ? ` **Next recommended step:** ${nextAction}.` : "";
 
   switch (promptKey) {
     case "quiz-summary":

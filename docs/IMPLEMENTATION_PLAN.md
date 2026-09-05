@@ -140,7 +140,7 @@ Tasks:
 - Vitest unit coverage target for Decision Engine ≥ 90% (pure functions, easy to hit).
 - React Testing Library coverage for quiz flow, calculators, auth forms.
 - Supertest integration coverage for auth, quiz, calculators, inspections, AI endpoints (mock providers), recommendation engine.
-- Playwright E2E: full funnel from landing → account creation → quiz → recommendation → calculators → inspection booking, on mobile viewport primarily.
+- Playwright E2E: full funnel from landing → guest quiz → account creation → result/recommendation → calculators → inspection booking, on mobile viewport primarily.
 - Accessibility pass: keyboard navigation, ARIA labels, contrast check against the fixed palette, focus states — target WCAG AA.
 
 Exit criteria: CI runs all four test layers on every PR; Playwright funnel test passes headless in CI; an axe-core (or equivalent) accessibility check runs in CI with no critical violations.

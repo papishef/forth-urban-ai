@@ -19,6 +19,8 @@ import {
   BookOpen,
   UserCog,
   CircleUserRound,
+  Clock,
+  Monitor,
   type LucideIcon,
 } from "lucide-react";
 import type { AdminMenuKey } from "@forth-urban/shared-types";
@@ -32,6 +34,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; menuKey: AdminMenuKey; icon:
   { to: "/admin/contact-messages", label: "Inquiries", menuKey: "contact-messages", icon: MessageSquare },
   { to: "/admin/users", label: "Users", menuKey: "users", icon: UsersIcon },
   { to: "/admin/properties", label: "Properties", menuKey: "properties", icon: Building2 },
+  { to: "/admin/attendance", label: "Attendance", menuKey: "attendance", icon: Clock },
   { to: "/admin/blog", label: "Blog Articles", menuKey: "blog", icon: BookOpen },
   { to: "/admin/newsletter", label: "Newsletter", menuKey: "newsletter", icon: Mail },
   { to: "/admin/email-campaigns", label: "Email Campaigns", menuKey: "email-campaigns", icon: Mail },
@@ -117,17 +120,31 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
               );
             })}
             {user?.role === "admin" && (
-              <Link
-                to="/admin/sub-admins"
-                onClick={() => setNavOpen(false)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
-                  location.pathname === "/admin/sub-admins" && "bg-white font-medium text-[#5C4033] shadow-sm",
-                )}
-              >
-                <UserCog className="h-4 w-4 shrink-0" />
-                Team & access
-              </Link>
+              <>
+                <Link
+                  to="/kiosk"
+                  target="_blank"
+                  onClick={() => setNavOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
+                    location.pathname === "/kiosk" && "bg-white font-medium text-[#5C4033] shadow-sm",
+                  )}
+                >
+                  <Monitor className="h-4 w-4 shrink-0" />
+                  Kiosk
+                </Link>
+                <Link
+                  to="/admin/sub-admins"
+                  onClick={() => setNavOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
+                    location.pathname === "/admin/sub-admins" && "bg-white font-medium text-[#5C4033] shadow-sm",
+                  )}
+                >
+                  <UserCog className="h-4 w-4 shrink-0" />
+                  Team & access
+                </Link>
+              </>
             )}
             <Link
               to="/profile"

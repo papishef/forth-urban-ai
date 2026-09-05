@@ -4,8 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { budgetCalculatorInputSchema, type BudgetCalculatorInput } from "@forth-urban/validation";
 import { Button, MotionCard, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, PageTransition, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { usePropertyDetail } from "../properties/properties-api";
 import { useBudgetCalculator } from "./calculators-api";
+import { MoneyInput } from "../../lib/money-input.js";
 
 function formatNaira(amount: number): string {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(
@@ -39,6 +41,7 @@ export function BudgetCalculatorPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<BudgetCalculatorInput>({
@@ -99,7 +102,7 @@ export function BudgetCalculatorPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 pt-2" noValidate>
                 <div className="space-y-1.5">
                   <Label htmlFor="downPayment">Down payment (NGN)</Label>
-                  <Input id="downPayment" type="number" min={0} {...register("downPayment", { valueAsNumber: true })} className="bg-white/50" />
+                  <MoneyInput control={control} name="downPayment" id="downPayment" className="bg-white/50" />
                   {errors.downPayment && <p className="text-sm font-medium text-red-600">{errors.downPayment.message}</p>}
                 </div>
 
@@ -119,13 +122,7 @@ export function BudgetCalculatorPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="monthlyIncome">Monthly income/contribution (NGN)</Label>
-                  <Input
-                    id="monthlyIncome"
-                    type="number"
-                    min={0}
-                    {...register("monthlyIncome", { valueAsNumber: true })}
-                    className="bg-white/50"
-                  />
+                  <MoneyInput control={control} name="monthlyIncome" id="monthlyIncome" className="bg-white/50" />
                   {errors.monthlyIncome && <p className="text-sm font-medium text-red-600">{errors.monthlyIncome.message}</p>}
                 </div>
 
@@ -190,10 +187,12 @@ export function BudgetCalculatorPage() {
                   <CardHeader>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex h-2.5 w-2.5 rounded-full bg-[#d4af37] animate-pulse" />
-                      <CardDescription className="uppercase tracking-wider font-semibold text-[#181818]/60 text-xs">Next Recommended Action</CardDescription>
+                      <CardDescription className="uppercase tracking-wider font-semibold text-[#181818]/60 text-xs"><strong>Next Recommended Action</strong></CardDescription>
                     </div>
                     <CardTitle className="text-2xl">{result.nextAction.action}</CardTitle>
-                    <CardDescription className="text-[#181818]/80 text-base">{result.nextAction.reason}</CardDescription>
+                    <div className="text-[#181818]/80 text-base mt-1">
+                      <MarkdownRenderer content={result.nextAction.reason} />
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-[#5C4033]/20" onClick={() => navigate(`/calculators/hidden-cost/${propertyId}`)}>Continue</Button>

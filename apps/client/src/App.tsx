@@ -19,7 +19,7 @@ import { ForgotPasswordPage } from "./features/auth/forgot-password-page";
 import { ResetPasswordPage } from "./features/auth/reset-password-page";
 import { GoogleCallbackPage } from "./features/auth/google-callback-page";
 import { DashboardPage } from "./features/dashboard/dashboard-page";
-import { HomeReadinessQuizPage } from "./features/quiz/home-readiness-quiz-page";
+import { HomeReadinessQuizEntry } from "./features/quiz/home-readiness-quiz-page";
 import { HomeReadinessResultPage } from "./features/quiz/home-readiness-result-page";
 import { AreaQuizPage } from "./features/quiz/area-quiz-page";
 import { AreaQuizResultPage } from "./features/quiz/area-quiz-result-page";
@@ -44,7 +44,10 @@ import { AdminNewsletterPage } from "./features/admin/admin-newsletter-page";
 import { AdminContactMessagesPage } from "./features/admin/admin-contact-messages-page";
 import { ProfileSettingsPage } from "./features/profile/profile-settings-page";
 import { AdminSubAdminsPage } from "./features/admin/admin-sub-admins-page";
+import { StorageCheckoutResultPage } from "./features/admin/storage-checkout-result-page";
 import { ProtectedRoute } from "./components/protected-route";
+import { KioskShell } from "./features/kiosk/kiosk-shell.js";
+import { AttendancePage } from "./features/admin/attendance/attendance-page.js";
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -85,6 +88,10 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/auth/google/success" element={<GoogleCallbackPage />} />
+        
+        {/* Kiosk — Public (no auth required) */}
+        <Route path="/kiosk" element={<KioskShell />} />
+        
         <Route
           path="/dashboard"
           element={
@@ -103,11 +110,7 @@ function App() {
         />
         <Route
           path="/quiz/home-readiness"
-          element={
-            <ProtectedRoute audience="customer">
-              <HomeReadinessQuizPage />
-            </ProtectedRoute>
-          }
+          element={<HomeReadinessQuizEntry />}
         />
         <Route
           path="/quiz/home-readiness/result"
@@ -272,6 +275,14 @@ function App() {
           }
         />
         <Route
+          path="/admin/settings/storage-payment"
+          element={
+            <ProtectedRoute audience="admin" requiredMenu="settings">
+              <StorageCheckoutResultPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/areas"
           element={
             <ProtectedRoute audience="admin" requiredMenu="areas">
@@ -292,6 +303,14 @@ function App() {
           element={
             <ProtectedRoute audience="admin" requiredMenu="logs">
               <AdminLogsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/attendance"
+          element={
+            <ProtectedRoute audience="admin" requiredMenu="attendance">
+              <AttendancePage />
             </ProtectedRoute>
           }
         />

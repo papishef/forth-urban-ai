@@ -20,6 +20,7 @@ import type {
 import type {
   AdminAreaInput,
   AdminBlogMediaUploadInput,
+  AdminBlogMediaDeleteInput,
   AdminBlogPostInput,
   AdminBlogPostUpdateInput,
   AdminMediaDeleteInput,
@@ -36,6 +37,11 @@ import type {
   CreateSubAdminInput,
   UpdateSubAdminInput,
 } from "@forth-urban/validation";
+import type {
+  StorageCheckoutDTO,
+  StoragePaymentDTO,
+  StorageStatusDTO,
+} from "@forth-urban/shared-types";
 import { apiClient } from "../../lib/api-client";
 
 interface ApiEnvelope<T> {
@@ -208,7 +214,10 @@ export function useAdminUploadPropertyMedia() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: AdminMediaUploadInput }) =>
       post<PropertyDTO>(`/admin/properties/${id}/media`, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
   });
 }
 
@@ -217,7 +226,10 @@ export function useAdminDeletePropertyMedia() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: AdminMediaDeleteInput }) =>
       del<PropertyDTO>(`/admin/properties/${id}/media`, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "properties"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
   });
 }
 
@@ -311,6 +323,59 @@ export function useAdminSettings() {
   return useQuery({
     queryKey: ["admin", "settings"],
     queryFn: () => get<SettingsDTO>("/admin/settings"),
+  });
+}
+
+export function useAdminStorageStatus() {
+  return useQuery({
+    queryKey: ["admin", "storage"],
+    queryFn: () => get<StorageStatusDTO>("/admin/billing/storage"),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAdminStoragePayments() {
+  return useQuery({
+    queryKey: ["admin", "storage", "payments"],
+    queryFn: () => get<StoragePaymentDTO[]>("/admin/billing/payments"),
+  });
+}
+
+export function useAdminStartStorageCheckout() {
+  return useMutation({
+    mutationFn: (input: { planId: "starter_5gb" | "growth_50gb" | "scale_200gb" }) =>
+      post<StorageCheckoutDTO>("/admin/billing/checkout", input),
+  });
+}
+
+export function useAdminVerifyStoragePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { transactionId: string; txRef?: string }) =>
+      post<StorageStatusDTO>("/admin/billing/verify", input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
+  });
+}
+
+export function useAdminStoragePaymentVerification(transactionId: string, txRef?: string) {
+  return useQuery({
+    queryKey: ["admin", "storage", "verification", transactionId, txRef],
+    queryFn: () => post<StorageStatusDTO>("/admin/billing/verify", { transactionId, txRef }),
+    enabled: Boolean(transactionId),
+    retry: false,
+  });
+}
+
+export function useAdminSetStorageAutoRenew() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (autoRenew: boolean) => patch<StorageStatusDTO>("/admin/billing/auto-renew", { autoRenew }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
   });
 }
 
@@ -426,7 +491,22 @@ export function useAdminUploadBlogMedia() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: AdminBlogMediaUploadInput }) =>
       post<BlogPostDTO>(`/admin/blog/${id}/media`, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
+  });
+}
+
+export function useAdminDeleteBlogMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdminBlogMediaDeleteInput }) =>
+      del<BlogPostDTO>(`/admin/blog/${id}/media`, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "blog"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "storage"] });
+    },
   });
 }
 

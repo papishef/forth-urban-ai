@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button, MotionCard, CardContent, CardDescription, CardHeader, CardTitle, SkeletonGlass, PageTransition, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { useHiddenCostCalculator } from "./calculators-api";
 
 function formatNaira(amount: number): string {
@@ -105,9 +106,9 @@ export function HiddenCostCalculatorPage() {
             {result && (
               <motion.div
                  key="result"
-                 initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                 animate={{ opacity: 1, height: "auto", scale: 1 }}
-                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                  className="flex flex-col gap-6"
               >
                 <MotionCard className="bg-[#5C4033] text-white border-none shadow-xl shadow-[#5C4033]/20 relative overflow-hidden">
@@ -139,14 +140,22 @@ export function HiddenCostCalculatorPage() {
                   </CardContent>
                 </MotionCard>
 
-                <MotionCard className="border-[1.5px] border-[#d4af37]/60 bg-gradient-to-br from-white/80 to-white/40 shadow-xl shadow-[#d4af37]/15">
+                <MotionCard
+                  initial={false}
+                  animate={{}}
+                  whileHover={{}}
+                  transition={{ duration: 0 }}
+                  className="border-[1.5px] border-[#d4af37]/60 bg-gradient-to-br from-white/80 to-white/40 shadow-xl shadow-[#d4af37]/15"
+                >
                   <CardHeader>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex h-2.5 w-2.5 rounded-full bg-[#d4af37] animate-pulse" />
                       <CardDescription className="uppercase tracking-wider font-semibold text-[#181818]/60 text-xs">Next Recommended Action</CardDescription>
                     </div>
                     <CardTitle className="text-2xl">{result.nextAction.action}</CardTitle>
-                    <CardDescription className="text-[#181818]/80 text-base">{result.nextAction.reason}</CardDescription>
+                    <div className="text-[#181818]/80 text-base mt-1">
+                      <MarkdownRenderer content={result.nextAction.reason} />
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-[#5C4033]/20" onClick={goToNextAction}>Continue</Button>

@@ -13,8 +13,8 @@ An AI-guided Abuja property consultation experience, not a property catalogue. I
 | Step | User action | System response | Next recommended action |
 |---|---|---|---|
 | 1 | Arrives from ad/social/search/referral | Hero explains free AI consultation | Start Free AI Property Consultation |
-| 2 | Creates account / logs in | Saves profile, opens quiz dashboard | Begin Abuja Home-Readiness Quiz |
-| 3 | Completes quiz | AI generates readiness score + buyer profile | View matched land recommendations |
+| 2 | Takes the Home-Readiness Quiz as a guest | Holds answers in the current session and asks for a free account after completion | Create a free profile to receive the result |
+| 3 | Creates account / logs in | Saves the quiz result, opens the dashboard, and sends the personalized profile | View matched land recommendations |
 | 4 | Views recommended lands | System explains fit | Open Budget & Installment Calculator |
 | 5 | Calculates affordability | Shows payment plan + affordability status | View Hidden Cost Breakdown |
 | 6 | Checks hidden costs | Explains legal/documentation costs | Run ROI Projection or View Inspection Checklist |
@@ -24,6 +24,8 @@ An AI-guided Abuja property consultation experience, not a property catalogue. I
 ## 3. Account layer (required, framed as a benefit)
 
 Every visitor must create an account or log in before receiving full personalized results, so Forth Urban owns the lead relationship (email/WhatsApp nurture, retargeting, sales follow-up).
+
+The quiz itself is public. Guests can complete the Home-Readiness Quiz before authentication; validated progress and answers remain in session storage for up to 24 hours and are submitted to the Decision Engine only after account creation or login. A failed result save keeps the account and offers a retry instead of asking the visitor to register again.
 
 **Headline:** "Create your free Abuja Property Profile"
 **Value bullets:** save quiz result; get matched Abuja property options; receive payment breakdown by email; track recommended next steps; book inspection when ready.

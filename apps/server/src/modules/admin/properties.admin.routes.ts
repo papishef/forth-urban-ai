@@ -9,9 +9,22 @@ import type { PaginatedResultDTO, PropertyDTO } from "@forth-urban/shared-types"
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
-import { deleteMediaByUrl, uploadMedia, type MediaKind } from "../../lib/cloudinary.util.js";
+import {
+  assertValidMediaUpload,
+  deleteMediaByUrl,
+  extractPublicIdFromUrl,
+  uploadMedia,
+  type MediaKind,
+} from "../../lib/cloudinary.util.js";
 import { requireAdminPermission } from "../auth/permissions.js";
 import { Property, toPropertyDTO } from "../properties/index.js";
+import {
+  assertWithinQuota,
+  getTrackedAsset,
+  registerMediaAsset,
+  releaseMediaAsset,
+  releaseMediaAssetsForOwner,
+} from "../billing/storage-quota.service.js";
 
 /**
  * `GET/POST/PATCH/DELETE /api/admin/properties` — Phase 7 admin Properties
@@ -113,6 +126,15 @@ propertiesAdminRouter.delete("/:id", requireAdminPermission("properties", "write
     property.set("deletedAt", new Date());
     await property.save();
 
+    await releaseMediaAssetsForOwner("property", property._id.toString());
+    const propertyMedia = property.media!;
+    await Promise.all([
+      ...propertyMedia.photos.map((url) => deleteMediaByUrl("image", url)),
+      ...propertyMedia.videos.map((url) => deleteMediaByUrl("video", url)),
+      ...(propertyMedia.brochureUrl ? [deleteMediaByUrl("document", propertyMedia.brochureUrl)] : []),
+      ...propertyMedia.titleDocuments.map((url) => deleteMediaByUrl("document", url)),
+    ]);
+
     await recordAuditLog({
       actorId: req.auth!.sub,
       actorType: "admin",
@@ -146,16 +168,46 @@ propertiesAdminRouter.post("/:id/media", requireAdminPermission("properties", "w
       base64Data: string;
     };
     const buffer = Buffer.from(base64Data, "base64");
+    assertValidMediaUpload(kind, mimeType, buffer.byteLength);
+    const media = property.media!;
+    const previousUrl = field === "brochureUrl" ? media.brochureUrl : null;
+    const previousAsset = previousUrl ? await getTrackedAsset(previousUrl) : null;
+    await assertWithinQuota(buffer.byteLength, previousAsset?.sizeBytes ?? 0);
     const url = await uploadMedia(kind, buffer, { mimeType, folder: `properties/${property._id.toString()}` });
 
-    const media = property.media!;
+    try {
+      await registerMediaAsset({
+        url,
+        publicId: extractPublicIdFromUrl(url, kind),
+        kind,
+        mimeType,
+        sizeBytes: buffer.byteLength,
+        ownerType: "property",
+        ownerId: property._id.toString(),
+      });
+    } catch (error) {
+      await deleteMediaByUrl(kind, url);
+      throw error;
+    }
+
     if (field === "brochureUrl") {
       media.brochureUrl = url;
     } else {
       (media[field] as string[]).push(url);
     }
     property.set("media", media);
-    await property.save();
+    try {
+      await property.save();
+    } catch (error) {
+      await releaseMediaAsset(url);
+      await deleteMediaByUrl(kind, url);
+      throw error;
+    }
+
+    if (previousAsset) {
+      await releaseMediaAsset(previousAsset.url);
+      await deleteMediaByUrl(previousAsset.kind as MediaKind, previousAsset.url);
+    }
 
     await recordAuditLog({
       actorId: req.auth!.sub,
@@ -203,6 +255,7 @@ propertiesAdminRouter.delete("/:id/media", requireAdminPermission("properties", 
     await property.save();
 
     const kind: MediaKind = field === "videos" ? "video" : field === "photos" ? "image" : "document";
+    await releaseMediaAsset(url);
     await deleteMediaByUrl(kind, url);
 
     await recordAuditLog({

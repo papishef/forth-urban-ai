@@ -36,9 +36,9 @@ This document serves as the master blueprint and reference for the customer-faci
       ┌─────────────────────────────┼─────────────────────────────┐
       ▼                             ▼                             ▼
 [Unauthenticated]           [Client / User]               [Staff / Admin]
-  ↳ /register                  ↳ /quiz/home-readiness       ↳ /admin/inspections
-  ↳ /login                     ↳ /properties/recommended    ↳ /admin/properties
-                               ↳ /dashboard                 ↳ /admin/crm
+  ↳ /quiz/home-readiness       ↳ /quiz/home-readiness       ↳ /admin/inspections
+  ↳ /register?next=result      ↳ /properties/recommended    ↳ /admin/properties
+  ↳ /login                     ↳ /dashboard                 ↳ /admin/crm
                                ↳ /inspections/book
 ```
 
@@ -47,7 +47,7 @@ This document serves as the master blueprint and reference for the customer-faci
   - Inherits the premium dark gradient aesthetic (`from-[#181818] via-[#2c1d17] to-[#5C4033]`) with animated ambient golden orbs (`#d4af37`).
   - Core Headline: *"Own Real Estate That Grows in Value"*.
   - Subheadline emphasizing verified serviced plots in Guzape II & Kuje with genuine FCDA R-of-O titles.
-  - Dual CTAs: Primary gold glass button to Take AI Readiness Quiz (`/register` or `/quiz/home-readiness`), Secondary button to Explore Services.
+  - Dual CTAs: Primary gold glass button to Take AI Readiness Quiz (`/quiz/home-readiness`), Secondary button to Explore Services.
 - **Trust Metrics Grid**: 100% Genuine Titles (FCDA verified), 3+ Active Estate Developments, Flexible Financing Plans, Proven Capital Growth.
 - **Interactive 4-Step Consultation Journey**:
   1. *AI Readiness Quiz* (Algorithmic scoring)
@@ -104,7 +104,7 @@ export function resolveEngineCta(
 
 | User State | Requested Intent | Route Target | Button Label |
 | :--- | :--- | :--- | :--- |
-| **Unauthenticated** | `quiz` / `start` | `/register` | "Take AI Readiness Quiz" / "Get Started Free" |
+| **Unauthenticated** | `quiz` / `start` | `/quiz/home-readiness` | "Take AI Readiness Quiz" |
 | **Unauthenticated** | `properties` | `/register` | "View Matched Properties" |
 | **Unauthenticated** | `book-inspection`| `/register` | "Book Site Inspection" |
 | **Unauthenticated** | `dashboard` | `/login` | "Client Login" |

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  adminBlogMediaDeleteSchema,
   adminBlogMediaUploadSchema,
   adminBlogPostInputSchema,
   adminBlogPostUpdateSchema,
@@ -9,11 +10,18 @@ import type { BlogPostDTO, PaginatedResultDTO } from "@forth-urban/shared-types"
 import { ApiError, type ApiEnvelope } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
-import { uploadMedia } from "../../lib/cloudinary.util.js";
+import { deleteMediaByUrl, extractPublicIdFromUrl, uploadMedia, assertValidMediaUpload } from "../../lib/cloudinary.util.js";
 import { logger } from "../../config/logger.js";
 import { requireAdminPermission } from "../auth/permissions.js";
 import { BlogPost, toBlogPostDTO } from "./blog-post.model.js";
 import { sendBlogNewsletterCampaign } from "./blog-newsletter-campaign.service.js";
+import {
+  assertWithinQuota,
+  getTrackedAsset,
+  registerMediaAsset,
+  releaseMediaAsset,
+  releaseMediaAssetsForOwner,
+} from "../billing/storage-quota.service.js";
 
 export const blogAdminRouter: Router = Router();
 
@@ -154,6 +162,11 @@ blogAdminRouter.delete("/:id", requireAdminPermission("blog", "write"), async (r
     post.set("deletedAt", new Date());
     await post.save();
 
+    await releaseMediaAssetsForOwner("blog", post._id.toString());
+    if (post.coverImageUrl) {
+      await deleteMediaByUrl("image", post.coverImageUrl);
+    }
+
     await recordAuditLog({
       actorId: req.auth!.sub,
       actorType: "admin",
@@ -177,13 +190,36 @@ blogAdminRouter.post("/:id/media", requireAdminPermission("blog", "write"), vali
     if (!post) throw new ApiError(404, "Blog post not found");
 
     const buffer = Buffer.from(req.body.base64Data, "base64");
+    assertValidMediaUpload("image", req.body.mimeType, buffer.byteLength);
+    const previousAsset = post.coverImageUrl ? await getTrackedAsset(post.coverImageUrl) : null;
+    await assertWithinQuota(buffer.byteLength, previousAsset?.sizeBytes ?? 0);
     const url = await uploadMedia("image", buffer, {
       mimeType: req.body.mimeType,
       folder: `blog/${post._id}`,
     });
 
-    post.coverImageUrl = url;
-    await post.save();
+    try {
+      await registerMediaAsset({
+        url,
+        publicId: extractPublicIdFromUrl(url, "image"),
+        kind: "image",
+        mimeType: req.body.mimeType,
+        sizeBytes: buffer.byteLength,
+        ownerType: "blog",
+        ownerId: post._id.toString(),
+      });
+      post.coverImageUrl = url;
+      await post.save();
+    } catch (error) {
+      await releaseMediaAsset(url);
+      await deleteMediaByUrl("image", url);
+      throw error;
+    }
+
+    if (post.coverImageUrl && previousAsset) {
+      await releaseMediaAsset(previousAsset.url);
+      await deleteMediaByUrl("image", previousAsset.url);
+    }
 
     await recordAuditLog({
       actorId: req.auth!.sub,
@@ -196,6 +232,36 @@ blogAdminRouter.post("/:id/media", requireAdminPermission("blog", "write"), vali
     });
 
     const body: ApiEnvelope = { success: true, message: "Cover image uploaded", data: toBlogPostDTO(post), errors: null };
+    res.json(body);
+  } catch (err) {
+    next(err);
+  }
+});
+
+blogAdminRouter.delete("/:id/media", requireAdminPermission("blog", "write"), validateBody(adminBlogMediaDeleteSchema), async (req, res, next) => {
+  try {
+    const post = await BlogPost.findById(req.params.id);
+    if (!post) throw new ApiError(404, "Blog post not found");
+    if (!post.coverImageUrl || post.coverImageUrl !== req.body.url) {
+      throw new ApiError(404, "Cover image not found on this post");
+    }
+
+    const url = post.coverImageUrl;
+    post.coverImageUrl = null;
+    await post.save();
+    await releaseMediaAsset(url);
+    await deleteMediaByUrl("image", url);
+
+    await recordAuditLog({
+      actorId: req.auth!.sub,
+      actorType: "admin",
+      action: "blog_post_cover_deleted",
+      targetType: "BlogPost",
+      targetId: post._id.toString(),
+      ipAddress: req.ip ?? null,
+    });
+
+    const body: ApiEnvelope = { success: true, message: "Cover image removed", data: toBlogPostDTO(post), errors: null };
     res.json(body);
   } catch (err) {
     next(err);

@@ -37,9 +37,9 @@ services:
       # commit real values here. See docs/ENVIRONMENT.md for what each one
       # does and where to obtain it.
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: https://www.forthurban.com,https://forthurban.com
       - key: CLIENT_URL
-        sync: false
+        value: https://www.forthurban.com
       - key: COOKIE_DOMAIN
         sync: false
       - key: MONGODB_URI
@@ -61,12 +61,28 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
-        sync: false
+        value: "Forth Urban <notification@notifications.forthurban.com>"
+      - key: RESEND_REPLY_TO_EMAIL
+        value: info@forthurban.com
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_PUBLIC_KEY
+        sync: false
+      - key: FLUTTERWAVE_ENCRYPTION_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_SECRET_HASH
+        sync: false
+      - key: FLUTTERWAVE_PLAN_5GB
+        sync: false
+      - key: FLUTTERWAVE_PLAN_50GB
+        sync: false
+      - key: FLUTTERWAVE_PLAN_200GB
         sync: false
       - key: OPENAI_API_KEY
         sync: false

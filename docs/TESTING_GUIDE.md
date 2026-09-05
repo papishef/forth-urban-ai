@@ -7,7 +7,7 @@ This project has four test layers, in line with [docs/IMPLEMENTATION_PLAN.md](IM
 | 1. Unit | Vitest | `apps/server/src/modules/**/*.test.ts` | Decision Engine (deterministic scoring/matching/calculator math) — enforced at ≥90% coverage |
 | 2. Component | Vitest + React Testing Library | `apps/client/src/features/**/*.test.tsx` | Quiz flow, calculators, auth forms |
 | 3. Integration | Vitest + Supertest | `apps/server/src/modules/**/*.route.test.ts` (and similar) | Auth, quiz, calculators, inspections, AI endpoints (mocked provider), recommendation engine |
-| 4. E2E + accessibility | Playwright + axe-core | `apps/client/e2e/*.spec.ts` | Full funnel (landing → account → quiz → recommendation → calculators → inspection booking) + WCAG AA scan |
+| 4. E2E + accessibility | Playwright + axe-core | `apps/client/e2e/*.spec.ts` | Full funnel (landing → guest quiz → account → result/recommendation → calculators → inspection booking) + WCAG AA scan |
 
 ## 1–2. Unit & component tests (Vitest)
 

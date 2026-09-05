@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import type { AdminMenuKey, UserRole } from "@forth-urban/shared-types";
 import { BuildingLoader } from "@forth-urban/ui";
 import { useAuth } from "../lib/auth-context";
@@ -19,6 +19,7 @@ export function ProtectedRoute({
   requiredPermission?: "read" | "write";
 }) {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -29,7 +30,8 @@ export function ProtectedRoute({
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const next = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
 
   const allowedRoles = role ? (Array.isArray(role) ? role : [role]) : null;

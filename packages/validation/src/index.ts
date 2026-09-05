@@ -461,6 +461,31 @@ export const adminUpdateSettingsSchema = z.object({
 });
 export type AdminUpdateSettingsInput = z.infer<typeof adminUpdateSettingsSchema>;
 
+export const adminStorageCheckoutSchema = z.object({
+  planId: z.enum(["starter_5gb", "growth_50gb", "scale_200gb"]),
+});
+export type AdminStorageCheckoutInput = z.infer<typeof adminStorageCheckoutSchema>;
+
+export const adminStorageVerifySchema = z.object({
+  transactionId: z.string().trim().min(1),
+  txRef: z.string().trim().min(1).optional(),
+});
+export type AdminStorageVerifyInput = z.infer<typeof adminStorageVerifySchema>;
+
+export const adminStorageAutoRenewSchema = z.object({
+  autoRenew: z.boolean(),
+});
+export type AdminStorageAutoRenewInput = z.infer<typeof adminStorageAutoRenewSchema>;
+
+/** Minimal shape accepted from Flutterwave before its signature is checked. */
+export const flutterwaveWebhookSchema = z
+  .object({
+    event: z.string().trim().min(1),
+    data: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+export type FlutterwaveWebhookInput = z.infer<typeof flutterwaveWebhookSchema>;
+
 export const adminAreaInputSchema = z.object({
   preferenceKey: areaPreferenceSchema,
   areaName: z.string().trim().min(1, "Area name is required").max(120),
@@ -585,3 +610,75 @@ export const adminBlogMediaUploadSchema = z.object({
   base64Data: z.string().trim().min(1, "File data is required"),
 });
 export type AdminBlogMediaUploadInput = z.infer<typeof adminBlogMediaUploadSchema>;
+
+export const adminBlogMediaDeleteSchema = z.object({
+  url: z.string().trim().min(1),
+});
+export type AdminBlogMediaDeleteInput = z.infer<typeof adminBlogMediaDeleteSchema>;
+
+/**
+ * Phase 9: Staff & Visitor Attendance Register schemas.
+ * See docs/IMPLEMENTATION_PLAN.md#phase-1--staff-and-visitor-attendance-register.
+ *
+ * Staff are permanent records (name, email, department, role, badge ID).
+ * Attendance logs track every check-in/out for staff and visitors.
+ */
+
+export const staffInputSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(60),
+  lastName: z.string().trim().min(1, "Last name is required").max(60),
+  email: emailSchema,
+  phone: z.string().trim().max(20).nullable().optional(),
+  department: z.string().trim().min(1, "Department is required").max(80),
+  role: z.string().trim().min(1, "Role is required").max(80),
+  badgeId: z.string().trim().max(50).nullable().optional(),
+});
+export type StaffInput = z.infer<typeof staffInputSchema>;
+
+export const staffUpdateSchema = staffInputSchema.partial();
+export type StaffUpdateInput = z.infer<typeof staffUpdateSchema>;
+
+export const attendanceTypeSchema = z.enum(["staff", "visitor"]);
+export type AttendanceType = z.infer<typeof attendanceTypeSchema>;
+
+export const checkInInputSchema = z
+  .object({
+    type: attendanceTypeSchema,
+    staffId: z.string().trim().min(1, "Select a staff member").optional(),
+    visitorName: z.string().trim().min(1, "Visitor name is required").max(120).optional(),
+    visitorEmail: emailSchema.optional().nullable(),
+    visitorPhone: z.string().trim().max(20).nullable().optional(),
+    purpose: z.string().trim().min(1, "Purpose is required").max(200),
+    linkedInspectionId: z.string().trim().min(1).optional().nullable(),
+    assignedSalesRep: z.string().trim().min(1).optional().nullable(),
+    notes: z.string().trim().max(500).nullable().optional(),
+    checkedInBy: z.string().trim().max(120).nullable().optional(),
+  })
+  .refine((data) => {
+    if (data.type === "staff") return Boolean(data.staffId);
+    if (data.type === "visitor") return Boolean(data.visitorName);
+    return false;
+  }, {
+    message: "Provide staffId for staff or visitorName for visitor",
+    path: ["type"],
+  });
+export type CheckInInput = z.infer<typeof checkInInputSchema>;
+
+export const checkOutInputSchema = z.object({
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+export type CheckOutInput = z.infer<typeof checkOutInputSchema>;
+
+export const attendanceFiltersSchema = z.object({
+  startDate: z.string().trim().optional(),
+  endDate: z.string().trim().optional(),
+  type: attendanceTypeSchema.optional(),
+  department: z.string().trim().optional(),
+  purpose: z.string().trim().optional(),
+  status: z.enum(["checked-out", "no-show", "pending"]).optional(),
+  assignedSalesRep: z.string().trim().optional(),
+});
+export type AttendanceFilters = z.infer<typeof attendanceFiltersSchema>;
+
+export const analyticsDateRangeSchema = z.enum(["today", "thisWeek", "thisMonth", "last30Days", "custom"]);
+export type AnalyticsDateRange = z.infer<typeof analyticsDateRangeSchema>;

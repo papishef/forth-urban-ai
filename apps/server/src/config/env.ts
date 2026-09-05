@@ -29,11 +29,20 @@ const envSchema = z.object({
   GOOGLE_CALLBACK_URL: z.string().default("http://localhost:4000/api/auth/google/callback"),
 
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().default("Forth Urban <onboarding@resend.dev>"),
+  RESEND_FROM_EMAIL: z.string().default("Forth Urban <notification@notifications.forthurban.com>"),
+  RESEND_REPLY_TO_EMAIL: z.string().default("info@forthurban.com"),
 
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+
+  FLUTTERWAVE_SECRET_KEY: z.string().optional(),
+  FLUTTERWAVE_PUBLIC_KEY: z.string().optional(),
+  FLUTTERWAVE_ENCRYPTION_KEY: z.string().optional(),
+  FLUTTERWAVE_WEBHOOK_SECRET_HASH: z.string().optional(),
+  FLUTTERWAVE_PLAN_5GB: z.string().optional(),
+  FLUTTERWAVE_PLAN_50GB: z.string().optional(),
+  FLUTTERWAVE_PLAN_200GB: z.string().optional(),
 
   // Phase 5 — AI providers (OpenAI primary, Gemini fallback per docs/ARCHITECTURE.md).
   // Both optional: if a key is missing, that provider's generate() throws and
@@ -88,9 +97,13 @@ if (env.NODE_ENV === "production") {
     JWT_REFRESH_SECRET: "dev-refresh-secret-change-me",
   };
   const offenders = Object.entries(insecureDefaults)
-    .filter(([key, defaultValue]) => (env as unknown as Record<string, string>)[key] === defaultValue)
+    .filter(
+      ([key, defaultValue]) => (env as unknown as Record<string, string>)[key] === defaultValue,
+    )
     .map(([key]) => key);
   if (offenders.length > 0) {
-    throw new Error(`Refusing to start in production with default secrets for: ${offenders.join(", ")}`);
+    throw new Error(
+      `Refusing to start in production with default secrets for: ${offenders.join(", ")}`,
+    );
   }
 }

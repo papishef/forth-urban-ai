@@ -42,6 +42,7 @@ const propertyListItem = {
   developmentStatus: "serviced",
   bestFitBuyerTypes: ["firstTime", "investment"],
   coverPhoto: null,
+  photos: [],
   features: ["Gated estate", "C of O ready"],
 };
 
@@ -61,7 +62,7 @@ const propertyDetail = {
   isActive: true,
 };
 
-const nextAction = (action: string, reason = "Recommended next step.") => ({
+const nextAction = (action: string, reason = "**Recommended next step:**") => ({
   trigger: "homeReadinessQuizCompleted",
   action,
   reason,

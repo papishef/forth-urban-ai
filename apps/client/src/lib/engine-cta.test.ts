@@ -39,9 +39,16 @@ const mockSubAdmin: UserDTO = {
 
 describe("resolveEngineCta", () => {
   describe("when unauthenticated", () => {
-    it("routes 'quiz' intent to /register", () => {
+    it("routes 'quiz' intent directly to the public readiness quiz", () => {
       const cta = resolveEngineCta(null, false, "quiz");
-      expect(cta.to).toBe("/register");
+      expect(cta.to).toBe("/quiz/home-readiness");
+      expect(cta.isEngineRoute).toBe(true);
+    });
+
+    it("starts unauthenticated visitors with the public readiness quiz", () => {
+      const cta = resolveEngineCta(null, false, "start");
+      expect(cta.to).toBe("/quiz/home-readiness");
+      expect(cta.label).toBe("Take AI Readiness Quiz");
       expect(cta.isEngineRoute).toBe(true);
     });
 

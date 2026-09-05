@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles, LayoutDashboard, ChevronRight } from "lucide-reac
 import { Button, Logo, cn } from "@forth-urban/ui";
 import { useAuth } from "../../../lib/auth-context";
 import { resolveEngineCta } from "../../../lib/engine-cta";
+import { getAuthPagePath } from "../../auth/auth-flow";
 
 const NAV_LINKS = [
   { to: "/", label: "Home" },
@@ -98,7 +99,7 @@ export function MarketingHeader() {
             </Link>
           ) : (
             <>
-              <Link to="/login" className="text-sm font-semibold text-[#5C4033] hover:underline px-3 py-2">
+              <Link to={getAuthPagePath("/login", location.search)} className="text-sm font-semibold text-[#5C4033] hover:underline px-3 py-2">
                 Sign In
               </Link>
               <Link to={engineCta.to}>

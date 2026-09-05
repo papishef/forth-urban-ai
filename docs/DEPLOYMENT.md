@@ -38,7 +38,7 @@ Free tiers are used throughout (see [IMPLEMENTATION_PLAN.md § Cost optimization
 1. Create a free Render account, connect your GitHub account/repo.
 2. **New + → Blueprint** → select this repo. Render reads [`render.yaml`](../render.yaml) at the repo root and proposes a `forth-urban-api` web service (free plan, root dir `apps/server`, health check `/api/health`).
 3. Click **Apply** to create the service. It will fail to boot the first time — that's expected, because the `sync: false` secrets in `render.yaml` are placeholders you must fill in next.
-4. Open the new service → **Environment** tab → fill in every variable marked `sync: false` in `render.yaml` (full list + where to get each value: [ENVIRONMENT.md](ENVIRONMENT.md)). At minimum for the app to boot: `CORS_ALLOWED_ORIGINS`, `CLIENT_URL`, `COOKIE_DOMAIN`, `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`.
+4. Open the new service → **Environment** tab → fill in every variable marked `sync: false` in `render.yaml` (full list + where to get each value: [ENVIRONMENT.md](ENVIRONMENT.md)). Set `CORS_ALLOWED_ORIGINS` to `https://www.forthurban.com,https://forthurban.com` so both website hostnames are allowed. At minimum for the app to boot: `CLIENT_URL`, `COOKIE_DOMAIN`, `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`.
 5. **Manual Deploy → Deploy latest commit** (or just wait — saving env vars auto-redeploys). Confirm `https://<service>.onrender.com/api/health` returns `{"success":true,...}`.
 6. Render's free web services **spin down after 15 minutes of inactivity** and take ~30-60s to wake on the next request — acceptable for a pre-launch/low-traffic phase; revisit (paid plan) once real users depend on responsiveness.
 7. **Preview environments:** Render's free plan does not include PR preview environments (that's a paid "Preview Environments" feature). For this phase, PRs are validated by the GitHub Actions CI job (lint/typecheck/test/build/e2e) instead of a live preview backend; only `main` auto-deploys to the real backend.
@@ -79,8 +79,10 @@ Both Render and Vercel already auto-deploy from git natively (§3, §4) — you 
 ## 6. Resend (transactional email)
 
 1. Create a free Resend account → **API Keys** → create one → this is `RESEND_API_KEY`.
-2. Until you own a verified domain, use the sandbox sender `RESEND_FROM_EMAIL=Forth Urban <onboarding@resend.dev>` (already the default) — it can only send to your own verified Resend account email while unverified.
-3. **Post client approval / custom domain** ([IMPLEMENTATION_PLAN.md Phase 10](IMPLEMENTATION_PLAN.md#phase-10--cicd--deployment)): Resend dashboard → **Domains → Add Domain** → add the DNS records (SPF/DKIM `TXT`/`CNAME`) it shows you at your domain registrar → once verified, change `RESEND_FROM_EMAIL` to e.g. `Forth Urban <hello@forthurban.ai>`.
+2. Until you have a verified sending domain, use the sandbox sender `RESEND_FROM_EMAIL=Forth Urban <onboarding@resend.dev>` — it can only send to your own verified Resend account email.
+3. For the verified `notifications.forthurban.com` domain, set `RESEND_FROM_EMAIL=Forth Urban <notification@notifications.forthurban.com>`. Locally, change it in `apps/server/.env`; on Render, open the service's **Environment** settings, edit `RESEND_FROM_EMAIL`, save, and redeploy. The local-part (`notification`) is the sender name before `@`; it does not need to be an existing inbox for Resend to accept the sender.
+4. Set `RESEND_REPLY_TO_EMAIL=info@forthurban.com` if recipients should reply to that inbox. The server sends this as Resend's `replyTo` field; it does not need to match the verified sending domain.
+5. **Post client approval / custom domain** ([IMPLEMENTATION_PLAN.md Phase 10](IMPLEMENTATION_PLAN.md#phase-10--cicd--deployment)): Resend dashboard → **Domains → Add Domain** → add the DNS records (SPF/DKIM `TXT`/`CNAME`) it shows you at your domain registrar → once verified, change `RESEND_FROM_EMAIL` to an address using that domain, such as `Forth Urban <hello@forthurban.ai>`.
 
 ---
 

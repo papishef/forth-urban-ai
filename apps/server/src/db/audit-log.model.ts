@@ -7,7 +7,7 @@ import { applyBaseSchema } from "./base-schema.plugin.js";
  */
 const auditLogSchema = new Schema({
   actorId: { type: Schema.Types.ObjectId, ref: "User", default: null },
-  actorType: { type: String, enum: ["user", "admin", "system"], required: true },
+  actorType: { type: String, enum: ["user", "admin", "system", "kiosk"], required: true },
   action: { type: String, required: true },
   targetType: { type: String, default: null },
   targetId: { type: Schema.Types.ObjectId, default: null },

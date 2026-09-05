@@ -22,6 +22,7 @@ const MENU_LABELS: Record<AdminMenuKey, string> = {
   "contact-messages": "Inquiries",
   users: "Users",
   properties: "Properties",
+  attendance: "Attendance",
   blog: "Blog articles",
   newsletter: "Newsletter",
   "email-campaigns": "Email campaigns",

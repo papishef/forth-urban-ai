@@ -13,7 +13,7 @@ Every environment (your laptop, a Vercel/Render **Preview** deploy for a PR, and
 |---|---|---|---|
 | `NODE_ENV` | required | `development` \| `test` \| `production` | n/a — set by you |
 | `PORT` | required | `4000` (Render sets its own `PORT`; leave as-is, Render injects it) | n/a |
-| `CORS_ALLOWED_ORIGINS` | required | comma-separated list, e.g. `https://forth-urban.vercel.app,https://forthurban.ai` | your Vercel/custom domain(s) |
+| `CORS_ALLOWED_ORIGINS` | required | comma-separated list, e.g. `https://www.forthurban.com,https://forthurban.com` | your Vercel/custom domain(s) |
 | `CLIENT_URL` | required | e.g. `https://forth-urban.vercel.app` — used in emails (reset-password links etc.) | your Vercel/custom domain |
 | `COOKIE_DOMAIN` | required | `localhost` locally; your apex domain in prod (e.g. `forthurban.ai`) — must match where the client is served for the refresh-token cookie to be sent | n/a |
 | `MONGODB_URI` | required | `mongodb+srv://user:pass@cluster.mongodb.net/forth-urban` | MongoDB Atlas → Database → Connect → Drivers (§1) |
@@ -24,8 +24,14 @@ Every environment (your laptop, a Vercel/Render **Preview** deploy for a PR, and
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional (Google login 503s if unset) | | Google Cloud Console → APIs & Services → Credentials (§2) |
 | `GOOGLE_CALLBACK_URL` | required if Google OAuth used | e.g. `https://forth-urban-api.onrender.com/api/auth/google/callback` | your Render URL |
 | `RESEND_API_KEY` | optional (emails no-op/log if unset) | | Resend dashboard → API Keys (§6) |
-| `RESEND_FROM_EMAIL` | optional | `Forth Urban <onboarding@resend.dev>` until a custom domain is verified | Resend → Domains (§6) |
+| `RESEND_FROM_EMAIL` | optional | `Forth Urban <notification@notifications.forthurban.com>` after verifying `notifications.forthurban.com` | Resend → Domains (§6); local `apps/server/.env` or the Render service environment |
+| `RESEND_REPLY_TO_EMAIL` | optional (default `info@forthurban.com`) | `info@forthurban.com` | the inbox that should open when a recipient replies |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | optional (admin media upload disabled if unset) | | Cloudinary dashboard home page (§7) |
+| `FLUTTERWAVE_SECRET_KEY` | optional (storage billing disabled if unset) | Secret API key for server-side checkout, verification, and webhook reconciliation | Flutterwave Dashboard → Settings → API Keys |
+| `FLUTTERWAVE_PUBLIC_KEY` | optional for the current hosted checkout flow | Public key reserved for a future inline checkout; never use the secret key in the client | Flutterwave Dashboard → Settings → API Keys |
+| `FLUTTERWAVE_ENCRYPTION_KEY` | optional for the current hosted checkout flow | Encryption key reserved for card-token flows; never commit it | Flutterwave Dashboard → Settings → API Keys |
+| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | required for automatic renewal reconciliation | The verification hash configured for the webhook endpoint | Flutterwave Dashboard → Settings → Webhooks |
+| `FLUTTERWAVE_PLAN_5GB` / `FLUTTERWAVE_PLAN_50GB` / `FLUTTERWAVE_PLAN_200GB` | required for paid storage checkout | Flutterwave recurring Payment Plan IDs matching ₦30,000, ₦150,000, and ₦300,000 monthly plans | Create recurring Payment Plans in the Blue Spider Technologies Ltd Flutterwave account |
 | `OPENAI_API_KEY` | optional (falls back to Gemini, then a local template) | | platform.openai.com → API keys (§8) |
 | `OPENAI_MODEL` | optional (default `gpt-5.1`) | | |
 | `GEMINI_API_KEY` | optional (fallback provider) | | Google AI Studio → Get API key (§8) |
@@ -52,6 +58,10 @@ All client vars are `VITE_`-prefixed, compiled into the static bundle at **build
 | `VITE_POSTHOG_KEY` | optional | client-side PostHog project key (same PostHog project as the server key, "Project API Key") | PostHog → Project Settings → API Keys (§9) |
 | `VITE_POSTHOG_HOST` | optional (default `https://us.i.posthog.com`) | | |
 | `VITE_SENTRY_DSN` | optional | client DSN (a **different** Sentry project/DSN than the server one is recommended, but a single project also works) | Sentry (§10) |
+
+### Storage billing setup
+
+Register `https://<your-api-host>/api/billing/webhook` as the HTTPS webhook URL in the Blue Spider Technologies Ltd Flutterwave account. The three `FLUTTERWAVE_PLAN_*` values must be the recurring Payment Plan IDs for the same amounts shown in the admin pricing modal; checkout rejects a plan whose recurring ID is missing so automatic renewal cannot be silently skipped.
 
 ## Notes
 

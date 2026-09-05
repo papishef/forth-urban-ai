@@ -25,11 +25,11 @@ export function resolveEngineCta(
   isAuthenticated: boolean,
   intent: EngineCtaIntent = "start",
 ): ResolvedEngineCta {
-  // If user is not logged in, point them to the onboarding funnel (/register)
+  // Let visitors experience the readiness quiz before asking for account details.
   if (!isAuthenticated || !user) {
     switch (intent) {
       case "quiz":
-        return { to: "/register", label: "Take AI Readiness Quiz", isEngineRoute: true };
+        return { to: "/quiz/home-readiness", label: "Take AI Readiness Quiz", isEngineRoute: true };
       case "area-quiz":
         return { to: "/register", label: "Find Your Best Area", isEngineRoute: true };
       case "properties":
@@ -42,7 +42,7 @@ export function resolveEngineCta(
         return { to: "/login", label: "Client Login", isEngineRoute: true };
       case "start":
       default:
-        return { to: "/register", label: "Get Started Free", isEngineRoute: true };
+        return { to: "/quiz/home-readiness", label: "Take AI Readiness Quiz", isEngineRoute: true };
     }
   }
 

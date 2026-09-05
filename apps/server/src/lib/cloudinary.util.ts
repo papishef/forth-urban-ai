@@ -117,3 +117,16 @@ export async function deleteMediaByUrl(kind: MediaKind, url: string): Promise<vo
     // best-effort only — see doc comment above.
   }
 }
+
+export async function getMediaSizeByUrl(kind: MediaKind, url: string): Promise<number | null> {
+  try {
+    ensureConfigured();
+    const publicId = extractPublicIdFromUrl(url, kind);
+    if (!publicId) return null;
+    const resourceType = kind === "document" ? "raw" : kind === "video" ? "video" : "image";
+    const resource = (await cloudinary.api.resource(publicId, { resource_type: resourceType })) as { bytes?: unknown };
+    return typeof resource.bytes === "number" && resource.bytes > 0 ? resource.bytes : null;
+  } catch {
+    return null;
+  }
+}

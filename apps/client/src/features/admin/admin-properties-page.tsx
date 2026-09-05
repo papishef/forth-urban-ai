@@ -3,10 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { adminPropertyInputSchema, type AdminPropertyInput } from "@forth-urban/validation";
-import { Badge, Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input, Label, Textarea } from "@forth-urban/ui";
+import { Badge, Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input, Label, StorageMeter, Textarea } from "@forth-urban/ui";
 import type { PropertyDTO } from "@forth-urban/shared-types";
 import { AlertTriangle, CheckCircle2, Eye, FileText, ImagePlus, Loader2, Pencil, Plus, ShieldCheck, ShieldOff, Sparkles, Trash2, X } from "lucide-react";
 import { getErrorMessage } from "../../lib/api-error";
+import { MoneyInput } from "../../lib/money-input.js";
 import { canWriteAdminMenu } from "../../lib/admin-access";
 import { useAuth } from "../../lib/auth-context";
 import {
@@ -16,10 +17,12 @@ import {
   useAdminProperties,
   useAdminUpdateProperty,
   useAdminUploadPropertyMedia,
+  useAdminStorageStatus,
   useVerifyPassword,
 } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 import { PasswordConfirmModal } from "./password-confirm-modal";
+import { StoragePricingModal } from "./storage-pricing-modal";
 
 /** Read-only "view" modal for a property — shows its full details plus every attached photo/video/document. */
 function PropertyViewModal({ property, onClose }: { property: PropertyDTO; onClose: () => void }) {
@@ -224,6 +227,7 @@ export function AdminPropertiesPage() {
   const [viewingProperty, setViewingProperty] = React.useState<PropertyDTO | null>(null);
   const [pendingAction, setPendingAction] = React.useState<PendingPropertyAction | null>(null);
   const [toast, setToast] = React.useState<{ message: string; variant: "success" | "error" } | null>(null);
+  const [showStoragePricing, setShowStoragePricing] = React.useState(false);
   const [deletingPhotoUrl, setDeletingPhotoUrl] = React.useState<string | null>(null);
   const toastTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -240,6 +244,7 @@ export function AdminPropertiesPage() {
   }, []);
 
   const { data, isLoading } = useAdminProperties(page);
+  const storage = useAdminStorageStatus();
   const createProperty = useAdminCreateProperty();
   const updateProperty = useAdminUpdateProperty();
   const deleteProperty = useAdminDeleteProperty();
@@ -248,9 +253,11 @@ export function AdminPropertiesPage() {
   const verifyPassword = useVerifyPassword();
   const { user } = useAuth();
   const canWrite = canWriteAdminMenu(user, "properties");
+  const canManageStorage = canWriteAdminMenu(user, "settings");
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -459,7 +466,7 @@ export function AdminPropertiesPage() {
             <CardTitle>{editingProperty ? `Edit ${editingProperty.name}` : "New property"}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid grid-cols-2 gap-4" onSubmit={onSubmit} noValidate>
+            <form className="grid grid-cols-1 gap-4 sm:grid-cols-2" onSubmit={onSubmit} noValidate>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...register("name")} />
@@ -477,7 +484,7 @@ export function AdminPropertiesPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pricePerPlot">Price per plot (₦)</Label>
-                <Input id="pricePerPlot" type="number" {...register("pricePerPlot", { valueAsNumber: true })} />
+                <MoneyInput control={control} name="pricePerPlot" id="pricePerPlot" />
                 {errors.pricePerPlot && <p className="text-sm text-red-600">{errors.pricePerPlot.message}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
@@ -506,7 +513,7 @@ export function AdminPropertiesPage() {
                 </select>
               </div>
 
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
                 <Label>Features</Label>
                 <p className="text-xs text-[#181818]/50">
                   Short highlight tags shown as premium pills on the property page (e.g. "Gated estate", "C of O
@@ -552,7 +559,7 @@ export function AdminPropertiesPage() {
                 </div>
               </div>
 
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
@@ -562,7 +569,7 @@ export function AdminPropertiesPage() {
                 {errors.description && <p className="text-sm text-red-600">{errors.description.message}</p>}
               </div>
 
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
                 <Label>Photos</Label>
                 {editingProperty && editingProperty.media.photos.length > 0 && (
                   <div className="mb-1 flex flex-wrap gap-2">
@@ -617,6 +624,14 @@ export function AdminPropertiesPage() {
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
                 </div>
+                {storage.data && (
+                  <StorageMeter
+                    status={storage.data}
+                    compact
+                    onUpgrade={canManageStorage ? () => setShowStoragePricing(true) : undefined}
+                    className="max-w-md"
+                  />
+                )}
                 {stagedPhotos.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-2">
                     {stagedPhotos.map((staged, i) => (
@@ -640,7 +655,7 @@ export function AdminPropertiesPage() {
                 )}
               </div>
 
-              <div className="col-span-2 flex justify-end gap-2">
+              <div className="col-span-1 flex justify-end gap-2 sm:col-span-2">
                 <Button type="button" variant="secondary" onClick={closeForm}>
                   Cancel
                 </Button>
@@ -802,6 +817,8 @@ export function AdminPropertiesPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <StoragePricingModal open={showStoragePricing} onClose={() => setShowStoragePricing(false)} status={storage.data} />
     </AdminLayout>
   );
 }

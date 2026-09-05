@@ -3,30 +3,19 @@ import { installApiMocks, PROPERTY_ID, type MockState } from "./mocks";
 
 /**
  * Full funnel E2E test (docs/IMPLEMENTATION_PLAN.md Phase 9): landing ->
- * account creation -> Home-Readiness Quiz -> recommendation -> calculators
- * -> inspection booking. Runs primarily on a mobile viewport (see
+ * guest Home-Readiness Quiz -> account creation -> result/recommendation
+ * -> calculators -> inspection booking. Runs primarily on a mobile viewport (see
  * playwright.config.ts's default "mobile-chrome" project).
  */
 test("full funnel: register through inspection booking", async ({ page }) => {
+  test.setTimeout(120_000);
   const state: MockState = { hasCompletedQuiz: false };
   await installApiMocks(page, state);
 
-  // Landing -> register
+  // Landing -> public Home-Readiness Quiz
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /forth urban ai property advisor/i })).toBeVisible();
-  await page.getByRole("link", { name: /get started/i }).click();
-
-  await expect(page).toHaveURL(/\/register$/);
-  await page.getByLabel("First name").fill("Jane");
-  await page.getByLabel("Last name").fill("Doe");
-  await page.getByLabel("Email").fill("jane.e2e@example.com");
-  await page.getByLabel(/^password$/i).fill("supersecret1");
-  await page.getByRole("button", { name: /create account/i }).click();
-
-  // Dashboard -> start Home-Readiness Quiz
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await page.getByRole("link", { name: /start home-readiness quiz/i }).click();
-
+  await page.getByRole("link", { name: /take ai readiness quiz/i }).first().click();
   await expect(page).toHaveURL(/\/quiz\/home-readiness$/);
 
   async function nextStep() {
@@ -43,11 +32,11 @@ test("full funnel: register through inspection booking", async ({ page }) => {
   await nextStep();
 
   await expect(page.getByText(/step 3 of 9/i)).toBeVisible();
-  await page.getByLabel(/monthly income/i).fill("300000");
+  await page.getByRole("radio", { name: /one-time payment/i }).check();
   await nextStep();
 
   await expect(page.getByText(/step 4 of 9/i)).toBeVisible();
-  await page.getByRole("radio", { name: /one-time payment/i }).check();
+  await page.getByLabel(/monthly income/i).fill("300000");
   await nextStep();
 
   await expect(page.getByText(/step 5 of 9/i)).toBeVisible();
@@ -68,11 +57,19 @@ test("full funnel: register through inspection booking", async ({ page }) => {
 
   await expect(page.getByText(/step 9 of 9/i)).toBeVisible();
   await page.getByRole("radio", { name: /physical site inspection/i }).check();
-  await page.getByRole("button", { name: /see my result/i }).click();
+  await page.getByRole("button", { name: /get my result/i }).click();
+
+  // Completed guest quiz -> registration -> persisted result
+  await expect(page).toHaveURL(/\/register\?next=/);
+  await page.getByLabel("First name").fill("Jane");
+  await page.getByLabel("Last name").fill("Doe");
+  await page.getByLabel("Email").fill("jane.e2e@example.com");
+  await page.getByLabel(/^password$/i).fill("supersecret1");
+  await page.getByRole("button", { name: /create account/i }).click();
 
   // Quiz result -> matched properties
   await expect(page).toHaveURL(/\/quiz\/home-readiness\/result$/);
-  await expect(page.getByText(/72\/100/)).toBeVisible();
+  await expect(page.getByText("72", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /view matched properties/i }).click();
 
   await expect(page).toHaveURL(/\/properties\/recommended$/);

@@ -28,6 +28,8 @@ import { contactRouter } from "./modules/contact/index.js";
 import { newsletterRouter } from "./modules/newsletter/index.js";
 import { blogRouter } from "./modules/blog/index.js";
 import { passport } from "./modules/auth/passport.js";
+import { billingWebhookRouter } from "./modules/billing/billing.webhook.routes.js";
+import { attendanceKioskRouter } from "./modules/attendance/index.js";
 
 /**
  * Builds the Express application. Kept as a factory (rather than a module-level
@@ -35,6 +37,11 @@ import { passport } from "./modules/auth/passport.js";
  */
 export function createApp(): Express {
   const app = express();
+  const allowedCorsOrigins = Array.from(
+    new Set(
+      [...env.CORS_ALLOWED_ORIGINS, env.CLIENT_URL].map((origin) => origin.replace(/\/+$/, "")),
+    ),
+  );
 
   // Render (like Heroku/Railway) terminates TLS at a reverse proxy in front
   // of the app, so every request arrives from that proxy's internal address.
@@ -50,7 +57,7 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.CORS_ALLOWED_ORIGINS,
+      origin: allowedCorsOrigins,
       credentials: true,
     }),
   );
@@ -100,6 +107,8 @@ export function createApp(): Express {
   app.use("/api/ai", aiAdvisoryRouter);
   app.use("/api/inspections", inspectionsRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/billing", billingWebhookRouter);
+  app.use("/api/attendance/kiosk", attendanceKioskRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/contact", contactRouter);

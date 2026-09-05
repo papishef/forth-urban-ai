@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { inspectionBookingInputSchema, type InspectionBookingInput } from "@forth-urban/validation";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { useAuth } from "../../lib/auth-context";
 import { trackClientEvent } from "../../lib/analytics";
 import { useBookInspection } from "./inspections-api";
@@ -96,7 +97,9 @@ export function InspectionBookingPage() {
             <CardHeader>
               <CardDescription>Next recommended action</CardDescription>
               <CardTitle>{result.nextAction.action}</CardTitle>
-              <CardDescription>{result.nextAction.reason}</CardDescription>
+              <div className="text-sm mt-1">
+                <MarkdownRenderer content={result.nextAction.reason} />
+              </div>
             </CardHeader>
             <CardContent>
               <Button onClick={() => navigate("/dashboard")}>Go to dashboard</Button>

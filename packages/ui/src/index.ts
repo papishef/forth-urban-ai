@@ -11,6 +11,8 @@ export { Label } from "./components/label.js";
 export { Badge, type BadgeProps } from "./components/badge.js";
 export { Card, MotionCard, CardHeader, CardTitle, CardDescription, CardContent } from "./components/card.js";
 export { Progress, type ProgressProps } from "./components/progress.js";
+export { Dialog, type DialogProps } from "./components/dialog.js";
+export { StorageMeter, formatStorageSize, type StorageMeterProps } from "./components/storage-meter.js";
 export { PageTransition } from "./components/page-transition.js";
 export { SkeletonGlass } from "./components/skeleton-glass.js";
 export { BuildingLoader, type BuildingLoaderProps } from "./components/building-loader.js";

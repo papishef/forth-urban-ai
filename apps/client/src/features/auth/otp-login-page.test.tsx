@@ -8,6 +8,7 @@ import { OtpLoginPage } from "./otp-login-page";
 const mockRequestOtp = vi.fn();
 const mockVerifyOtp = vi.fn();
 const mockNavigate = vi.fn();
+const mockUser = { id: "user-1", role: "user" };
 
 vi.mock("../../lib/auth-context", () => ({
   useAuth: () => ({ requestOtp: mockRequestOtp, verifyOtp: mockVerifyOtp }),
@@ -35,6 +36,7 @@ describe("OtpLoginPage", () => {
     mockRequestOtp.mockReset();
     mockVerifyOtp.mockReset();
     mockNavigate.mockReset();
+    sessionStorage.clear();
   });
 
   it("shows a validation error when requesting a code with an invalid email", async () => {
@@ -48,7 +50,7 @@ describe("OtpLoginPage", () => {
 
   it("requests a code, then verifies it and navigates to the dashboard", async () => {
     mockRequestOtp.mockResolvedValue(undefined);
-    mockVerifyOtp.mockResolvedValue(undefined);
+    mockVerifyOtp.mockResolvedValue(mockUser);
     renderPage();
 
     await userEvent.type(screen.getByLabelText(/email/i), "jane@example.com");
@@ -63,7 +65,7 @@ describe("OtpLoginPage", () => {
     await waitFor(() =>
       expect(mockVerifyOtp).toHaveBeenCalledWith({ email: "jane@example.com", code: "123456" }),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard", { replace: true }));
   });
 
   it("shows a server error when verification fails", async () => {

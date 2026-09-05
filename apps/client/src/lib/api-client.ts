@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:4000/api";
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:4000/api";
 
 // Access token lives in memory only (never localStorage) — refreshed silently
 // via the httpOnly refresh-token cookie. This limits XSS blast radius.
@@ -72,6 +72,15 @@ export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
 });
+
+export function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  if (csrfToken && ["POST", "PATCH", "PUT", "DELETE"].includes((init.method ?? "GET").toUpperCase())) {
+    headers.set("x-csrf-token", csrfToken);
+  }
+  return fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: "include" });
+}
 
 apiClient.interceptors.request.use((config) => {
   if (accessToken) {

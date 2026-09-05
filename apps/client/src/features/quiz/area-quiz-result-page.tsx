@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { BuildingLoader, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import type { AreaQuizResultDTO } from "@forth-urban/shared-types";
 import { useAreaQuizResult } from "./quiz-api";
 
@@ -46,7 +47,9 @@ export function AreaQuizResultPage() {
           <CardHeader>
             <CardDescription>Next recommended action</CardDescription>
             <CardTitle>{result.nextAction.action}</CardTitle>
-            <CardDescription>{result.nextAction.reason}</CardDescription>
+            <div className="text-sm mt-1">
+              <MarkdownRenderer content={result.nextAction.reason} />
+            </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button onClick={() => navigate(`/inspections/book?area=${encodeURIComponent(result.recommendedArea)}`)}>

@@ -1,17 +1,29 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@forth-urban/validation";
 import { Button, Input, Label } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { getErrorMessage } from "../../lib/api-error";
-import { getAdminLandingPath } from "../../lib/admin-access";
+import {
+  getAuthPagePath,
+  markPendingHomeReadinessAuthHandoff,
+  useAuthFlowCompletion,
+} from "./auth-flow";
 import { AuthLayout } from "./auth-layout";
 
 export function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    complete,
+    retryPendingQuiz,
+    authenticatedUser,
+    isSavingQuiz,
+    quizSaveError,
+    isReadinessHandoff,
+  } = useAuthFlowCompletion();
   const [serverError, setServerError] = React.useState<string | null>(null);
   const {
     register,
@@ -21,9 +33,15 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
+
+    if (authenticatedUser) {
+      await retryPendingQuiz();
+      return;
+    }
+
     try {
       const user = await login(values);
-      navigate(getAdminLandingPath(user));
+      await complete(user);
     } catch (err) {
       setServerError(getErrorMessage(err, "Invalid email or password"));
     }
@@ -32,10 +50,14 @@ export function LoginPage() {
   return (
     <AuthLayout
       title="Welcome back"
-      description="Log in to continue your property journey."
+      description={
+        isReadinessHandoff
+          ? "Log in to receive your saved readiness result."
+          : "Log in to continue your property journey."
+      }
       footer={
         <>
-          New here? <Link to="/register" className="font-medium text-[#5C4033] underline">Create an account</Link>
+          New here? <Link to={getAuthPagePath("/register", location.search)} className="font-medium text-[#5C4033] underline">Create an account</Link>
         </>
       }
     >
@@ -55,19 +77,29 @@ export function LoginPage() {
             Forgot password?
           </Link>
         </div>
-        {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Logging in…" : "Log in"}
-        </Button>
+        {serverError ? <p className="text-sm text-red-600" role="alert">{serverError}</p> : null}
+        {quizSaveError ? <p className="text-sm text-red-600" role="alert">{quizSaveError}</p> : null}
+        {authenticatedUser && quizSaveError ? (
+          <Button type="button" disabled={isSavingQuiz} onClick={() => void retryPendingQuiz()} className="w-full">
+            {isSavingQuiz ? "Saving your result…" : "Retry saving my result"}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={isSubmitting || isSavingQuiz} className="w-full">
+            {isSavingQuiz ? "Saving your result…" : isSubmitting ? "Logging in…" : "Log in"}
+          </Button>
+        )}
         <a
           href={`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api"}/auth/google`}
           className="w-full"
+          onClick={() => {
+            if (isReadinessHandoff) markPendingHomeReadinessAuthHandoff();
+          }}
         >
           <Button type="button" variant="secondary" className="w-full">
             Continue with Google
           </Button>
         </a>
-        <Link to="/login/otp" className="text-center text-sm text-[#5C4033] underline">
+        <Link to={getAuthPagePath("/login/otp", location.search)} className="text-center text-sm text-[#5C4033] underline">
           Log in with a one-time code instead
         </Link>
       </form>

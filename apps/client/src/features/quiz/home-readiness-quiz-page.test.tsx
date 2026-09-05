@@ -3,10 +3,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { HomeReadinessQuizPage } from "./home-readiness-quiz-page";
+import { getPendingHomeReadinessQuiz } from "./pending-home-readiness";
 
 const mockNavigate = vi.fn();
 const mockStartMutate = vi.fn();
 const mockSubmitMutateAsync = vi.fn();
+const mockAuth = { isAuthenticated: true, isLoading: false };
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -16,6 +18,10 @@ vi.mock("react-router-dom", async () => {
 vi.mock("./quiz-api", () => ({
   useStartHomeReadinessQuiz: () => ({ mutate: mockStartMutate }),
   useSubmitHomeReadinessQuiz: () => ({ mutateAsync: mockSubmitMutateAsync, isPending: false }),
+}));
+
+vi.mock("../../lib/auth-context", () => ({
+  useAuth: () => mockAuth,
 }));
 
 // framer-motion's AnimatePresence/motion.div rely on real animation-frame
@@ -64,6 +70,9 @@ describe("HomeReadinessQuizPage", () => {
     mockNavigate.mockReset();
     mockStartMutate.mockReset();
     mockSubmitMutateAsync.mockReset();
+    mockAuth.isAuthenticated = true;
+    mockAuth.isLoading = false;
+    sessionStorage.clear();
   });
 
   it("starts the quiz on mount", () => {
@@ -92,11 +101,11 @@ describe("HomeReadinessQuizPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 3 of 9/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/monthly income/i), { target: { value: "300000" } });
+    await selectRadio(/one-time payment/i);
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 4 of 9/i)).toBeInTheDocument();
-    await selectRadio(/one-time payment/i);
+    fireEvent.change(screen.getByLabelText(/monthly income/i), { target: { value: "300000" } });
     await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
 
     expect(await screen.findByText(/step 5 of 9/i)).toBeInTheDocument();
@@ -117,7 +126,7 @@ describe("HomeReadinessQuizPage", () => {
 
     expect(await screen.findByText(/step 9 of 9/i)).toBeInTheDocument();
     await selectRadio(/physical site inspection/i);
-    await userEvent.click(screen.getByRole("button", { name: /see results/i }));
+    await userEvent.click(screen.getByRole("button", { name: /see my result/i }));
 
     await screen.findByText(/step 9 of 9/i);
     expect(mockSubmitMutateAsync).toHaveBeenCalledWith(
@@ -134,5 +143,65 @@ describe("HomeReadinessQuizPage", () => {
       }),
     );
     expect(mockNavigate).toHaveBeenCalledWith("/quiz/home-readiness/result", { state: { score: 72 } });
+  });
+
+  it("saves completed answers and opens registration for a guest", async () => {
+    mockAuth.isAuthenticated = false;
+    renderPage();
+
+    await selectRadio(/investment/i);
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 2 of 9/i);
+    fireEvent.change(screen.getByLabelText(/minimum/i), { target: { value: "1000000" } });
+    fireEvent.change(screen.getByLabelText(/maximum/i), { target: { value: "5000000" } });
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 3 of 9/i);
+    await selectRadio(/one-time payment/i);
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 4 of 9/i);
+    fireEvent.change(screen.getByLabelText(/monthly income/i), { target: { value: "300000" } });
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 5 of 9/i);
+    await selectRadio(/right now/i);
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 6 of 9/i);
+    fireEvent.change(screen.getByLabelText(/area you're considering/i), { target: { value: "Kuje" } });
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 7 of 9/i);
+    await selectRadio(/family-friendly/i);
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 8 of 9/i);
+    await selectRadio(/affordability/i);
+    await userEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText(/step 9 of 9/i);
+    await selectRadio(/physical site inspection/i);
+    await userEvent.click(screen.getByRole("button", { name: /get my result/i }));
+
+    expect(mockSubmitMutateAsync).not.toHaveBeenCalled();
+    expect(getPendingHomeReadinessQuiz()).toEqual({
+      buyerGoal: "investment",
+      budgetRange: { min: 1_000_000, max: 5_000_000 },
+      monthlyIncome: 300_000,
+      paymentStyle: "oneTime",
+      timeline: "now",
+      preferredArea: "Kuje",
+      lifestylePreference: "familyFriendly",
+      biggestFear: "affordability",
+      inspectionPreference: "physical",
+    });
+    expect(mockNavigate).toHaveBeenCalledWith("/register?next=%2Fquiz%2Fhome-readiness%2Fresult");
+  });
+
+  it("resumes a guest at the saved step after a refresh", () => {
+    mockAuth.isAuthenticated = false;
+    sessionStorage.setItem(
+      "forth-urban.pending-home-readiness-progress",
+      JSON.stringify({ version: 1, savedAt: Date.now(), stepIndex: 1, answers: { buyerGoal: "investment" } }),
+    );
+
+    renderPage();
+
+    expect(screen.getByText(/step 2 of 9/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/minimum/i)).toBeInTheDocument();
   });
 });

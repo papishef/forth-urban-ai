@@ -25,6 +25,7 @@ export const ADMIN_MENU_KEYS = [
   "areas",
   "prompts",
   "logs",
+  "attendance",
 ] as const;
 
 export type AdminMenuKey = (typeof ADMIN_MENU_KEYS)[number];
@@ -38,6 +39,90 @@ export interface AdminMenuPermissionDTO {
 }
 
 export type AdminMenuPermissionsDTO = Partial<Record<AdminMenuKey, AdminMenuPermissionDTO>>;
+
+export type StoragePlanId = "free" | "starter_5gb" | "growth_50gb" | "scale_200gb";
+export type StorageSubscriptionStatus = "active" | "past_due" | "canceled";
+export type StoragePaymentStatus = "pending" | "successful" | "failed";
+
+export interface StoragePlanDTO {
+  id: StoragePlanId;
+  label: string;
+  storageBytes: number;
+  priceNaira: number;
+  billingInterval: "monthly";
+  isPopular: boolean;
+  isPremium: boolean;
+}
+
+/** Shared source of truth for the free allowance and paid storage pricing. */
+export const STORAGE_PLANS = [
+  {
+    id: "free",
+    label: "Free",
+    storageBytes: 50 * 1024 * 1024,
+    priceNaira: 0,
+    billingInterval: "monthly",
+    isPopular: false,
+    isPremium: false,
+  },
+  {
+    id: "starter_5gb",
+    label: "5 GB",
+    storageBytes: 5 * 1024 * 1024 * 1024,
+    priceNaira: 30_000,
+    billingInterval: "monthly",
+    isPopular: false,
+    isPremium: false,
+  },
+  {
+    id: "growth_50gb",
+    label: "50 GB",
+    storageBytes: 50 * 1024 * 1024 * 1024,
+    priceNaira: 150_000,
+    billingInterval: "monthly",
+    isPopular: false,
+    isPremium: false,
+  },
+  {
+    id: "scale_200gb",
+    label: "200 GB",
+    storageBytes: 200 * 1024 * 1024 * 1024,
+    priceNaira: 300_000,
+    billingInterval: "monthly",
+    isPopular: true,
+    isPremium: true,
+  },
+] as const satisfies readonly StoragePlanDTO[];
+
+export interface StorageStatusDTO {
+  usedBytes: number;
+  totalBytes: number;
+  availableBytes: number;
+  usagePercent: number;
+  planId: StoragePlanId;
+  planLabel: string;
+  planPriceNaira: number;
+  status: StorageSubscriptionStatus;
+  autoRenew: boolean;
+  currentPeriodEnd: string | null;
+  lastPaymentAt: string | null;
+  isOverQuota: boolean;
+}
+
+export interface StorageCheckoutDTO {
+  paymentLink: string;
+  txRef: string;
+  planId: Exclude<StoragePlanId, "free">;
+}
+
+export interface StoragePaymentDTO {
+  id: string;
+  planId: Exclude<StoragePlanId, "free">;
+  amountNaira: number;
+  status: StoragePaymentStatus;
+  txRef: string;
+  createdAt: string;
+}
 
 /** Owner-managed access attached to an ordinary user account. */
 export interface AdminAccessDTO {

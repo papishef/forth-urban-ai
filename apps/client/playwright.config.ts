@@ -13,6 +13,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Axe and Framer Motion are CPU-heavy together on constrained CI runners;
+  // one worker keeps geometry/actionability checks deterministic.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["html", { open: "never" }], ["list"]],

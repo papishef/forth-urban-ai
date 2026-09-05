@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Badge, BuildingLoader, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Logo } from "@forth-urban/ui";
 import { Sparkles } from "lucide-react";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import { trackClientEvent } from "../../lib/analytics";
 import { usePropertyDetail } from "./properties-api";
 
@@ -154,7 +155,9 @@ export function PropertyDetailPage() {
           <CardHeader>
             <CardDescription>Next recommended action</CardDescription>
             <CardTitle>{nextAction.action}</CardTitle>
-            <CardDescription>{nextAction.reason}</CardDescription>
+            <div className="text-sm mt-1">
+              <MarkdownRenderer content={nextAction.reason} />
+            </div>
           </CardHeader>
           <CardContent>
             <Button onClick={() => navigate(`/calculators/budget/${property.id}`)}>Continue</Button>

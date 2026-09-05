@@ -15,6 +15,8 @@ import { contactMessagesAdminRouter } from "../contact/contact-messages.admin.ro
 import { newsletterAdminRouter } from "../newsletter/newsletter.admin.routes.js";
 import { blogAdminRouter } from "../blog/blog.admin.routes.js";
 import { subAdminsAdminRouter } from "./sub-admins.admin.routes.js";
+import { billingAdminRouter } from "../billing/billing.admin.routes.js";
+import { attendanceAdminRouter } from "../attendance/attendance.admin.routes.js";
 
 /**
  * Admin module — Phase 7 (docs/IMPLEMENTATION_PLAN.md#phase-7--admin-dashboard).
@@ -42,5 +44,7 @@ adminRouter.use("/prompts", requireAdminPermission("prompts"), promptsAdminRoute
 adminRouter.use("/contact-messages", requireAdminPermission("contact-messages"), contactMessagesAdminRouter);
 adminRouter.use("/newsletter", requireAdminPermission("newsletter"), newsletterAdminRouter);
 adminRouter.use("/blog", requireAdminPermission("blog"), blogAdminRouter);
+adminRouter.use("/billing", requireAdminPermission("settings"), billingAdminRouter);
+adminRouter.use("/attendance", requireAdminPermission("attendance"), attendanceAdminRouter);
 
 

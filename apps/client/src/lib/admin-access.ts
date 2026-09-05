@@ -10,6 +10,7 @@ export const ADMIN_MENU_PATHS: Record<AdminMenuKey, string> = {
   "contact-messages": "/admin/contact-messages",
   users: "/admin/users",
   properties: "/admin/properties",
+  attendance: "/admin/attendance",
   blog: "/admin/blog",
   newsletter: "/admin/newsletter",
   "email-campaigns": "/admin/email-campaigns",

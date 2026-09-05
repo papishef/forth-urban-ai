@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button, MotionCard, CardContent, CardDescription, CardHeader, CardTitle, SkeletonGlass, PageTransition, Logo } from "@forth-urban/ui";
+import { MarkdownRenderer } from "../../components/markdown-renderer";
 import type { HomeReadinessResultDTO } from "@forth-urban/shared-types";
 import { useHomeReadinessResult } from "./quiz-api";
 import { useQuizSummaryExplanation } from "../ai-advisory/ai-advisory-api";
@@ -111,7 +112,9 @@ export function HomeReadinessResultPage() {
                   <CardDescription className="uppercase tracking-wider font-semibold text-[#181818]/60 text-xs">Next Recommended Action</CardDescription>
                 </div>
                 <CardTitle className="text-2xl">{result.nextAction.action}</CardTitle>
-                <CardDescription className="text-[#181818]/80 text-base">{result.nextAction.reason}</CardDescription>
+                <div className="text-[#181818]/80 text-base mt-1">
+                  <MarkdownRenderer content={result.nextAction.reason} />
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col sm:flex-row gap-3">
                 <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-[#5C4033]/20" onClick={() => navigate("/properties/recommended")}>View matched properties</Button>

@@ -16,12 +16,16 @@ interface SendEmailInput {
  */
 export async function sendEmail(input: SendEmailInput): Promise<void> {
   if (!resend) {
-    logger.info({ to: input.to, subject: input.subject }, "RESEND_API_KEY not set — logging email instead of sending");
+    logger.info(
+      { to: input.to, subject: input.subject },
+      "RESEND_API_KEY not set — logging email instead of sending",
+    );
     return;
   }
 
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
+    replyTo: env.RESEND_REPLY_TO_EMAIL,
     to: input.to,
     subject: input.subject,
     html: input.html,

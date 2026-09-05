@@ -1,17 +1,27 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button, MotionCard, CardContent, CardHeader, CardTitle, Input, Label, Progress, PageTransition, Logo } from "@forth-urban/ui";
+import { BuildingLoader, Button, MotionCard, CardContent, CardHeader, CardTitle, Input, Label, Progress, PageTransition, Logo } from "@forth-urban/ui";
 import { homeReadinessAnswersSchema, type HomeReadinessAnswers } from "@forth-urban/validation";
 import { useStartHomeReadinessQuiz, useSubmitHomeReadinessQuiz } from "./quiz-api";
+import {
+  clearPendingHomeReadinessQuiz,
+  getPendingHomeReadinessProgress,
+  savePendingHomeReadinessProgress,
+  savePendingHomeReadinessQuiz,
+} from "./pending-home-readiness";
+import { useAuth } from "../../lib/auth-context";
+import { getErrorMessage } from "../../lib/api-error";
+import { getAdminLandingPath, hasAdminSurface } from "../../lib/admin-access";
+import { MoneyInput } from "../../lib/money-input.js";
 
 type StepId =
   | "buyerGoal"
   | "budgetRange"
-  | "monthlyIncome"
   | "paymentStyle"
+  | "monthlyIncome"
   | "timeline"
   | "preferredArea"
   | "lifestylePreference"
@@ -28,8 +38,8 @@ interface Step {
 const STEPS: Step[] = [
   { id: "buyerGoal", question: "Why do you want a property?", description: "Help us understand your core objective.", fields: ["buyerGoal"] },
   { id: "budgetRange", question: "What initial budget can you start with?", description: "Tell us your initial budget (NGN).", fields: ["budgetRange"] },
-  { id: "monthlyIncome", question: "What payment pressure can you handle?", description: "Your safe monthly contribution limit.", fields: ["monthlyIncome"] },
   { id: "paymentStyle", question: "One-time or installment?", description: "How you prefer to structure payments.", fields: ["paymentStyle"] },
+  { id: "monthlyIncome", question: "What payment pressure can you handle?", description: "Your safe monthly contribution limit.", fields: ["monthlyIncome"] },
   { id: "timeline", question: "When do you want to buy?", description: "Helps us match you with ready properties.", fields: ["timeline"] },
   { id: "preferredArea", question: "Where in Abuja are you considering?", description: "Your target location in Abuja.", fields: ["preferredArea"] },
   { id: "lifestylePreference", question: "What environment fits you?", description: "Your ideal neighborhood vibe.", fields: ["lifestylePreference"] },
@@ -78,10 +88,31 @@ const RADIO_OPTIONS: Partial<Record<StepId, Array<{ value: string; label: string
   ],
 };
 
+export function HomeReadinessQuizEntry() {
+  const { isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#FFECE4]">
+        <BuildingLoader size="lg" label="Loading…" />
+      </div>
+    );
+  }
+
+  if (hasAdminSurface(user)) {
+    return <Navigate to={getAdminLandingPath(user)} replace />;
+  }
+
+  return <HomeReadinessQuizPage />;
+}
+
 /** One-question-per-screen Home-Readiness Quiz wizard (PRODUCT_SPEC §4, §16). */
 export function HomeReadinessQuizPage() {
   const navigate = useNavigate();
-  const [stepIndex, setStepIndex] = React.useState(0);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [savedProgress] = React.useState(() => getPendingHomeReadinessProgress());
+  const [stepIndex, setStepIndex] = React.useState(savedProgress?.stepIndex ?? 0);
+  const [flowError, setFlowError] = React.useState<string | null>(null);
   const startQuiz = useStartHomeReadinessQuiz();
   const submitQuiz = useSubmitHomeReadinessQuiz();
   const startedRef = React.useRef(false);
@@ -89,6 +120,8 @@ export function HomeReadinessQuizPage() {
   const {
     register,
     watch,
+    control,
+    getValues,
     setValue,
     trigger,
     handleSubmit,
@@ -96,19 +129,30 @@ export function HomeReadinessQuizPage() {
   } = useForm<HomeReadinessAnswers>({
     resolver: zodResolver(homeReadinessAnswersSchema),
     defaultValues: {
-      budgetRange: { min: 0, max: 0 },
-      monthlyIncome: 0,
-      preferredArea: "",
+      ...savedProgress?.answers,
+      budgetRange: {
+        min: savedProgress?.answers.budgetRange?.min ?? 0,
+        max: savedProgress?.answers.budgetRange?.max ?? 0,
+      },
+      monthlyIncome: savedProgress?.answers.monthlyIncome ?? 0,
+      preferredArea: savedProgress?.answers.preferredArea ?? "",
     },
   });
 
+  const formValues = useWatch({ control });
+
   React.useEffect(() => {
-    if (!startedRef.current) {
+    if (!isAuthenticated) {
+      savePendingHomeReadinessProgress(formValues, stepIndex);
+    }
+  }, [formValues, isAuthenticated, stepIndex]);
+
+  React.useEffect(() => {
+    if (!isAuthLoading && isAuthenticated && !startedRef.current) {
       startedRef.current = true;
       startQuiz.mutate();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthLoading, isAuthenticated, startQuiz]);
 
   const step = STEPS[stepIndex]!;
   const isLastStep = stepIndex === STEPS.length - 1;
@@ -121,17 +165,37 @@ export function HomeReadinessQuizPage() {
 
     if (isLastStep) {
       await handleSubmit(async (values) => {
-        const result = await submitQuiz.mutateAsync(values);
-        navigate("/quiz/home-readiness/result", { state: result });
+        setFlowError(null);
+        if (isAuthLoading) return;
+
+        if (!isAuthenticated) {
+          const saved = savePendingHomeReadinessQuiz(values);
+          if (!saved) {
+            setFlowError("We could not save your answers in this browser. Please check storage permissions and try again.");
+            return;
+          }
+          navigate("/register?next=%2Fquiz%2Fhome-readiness%2Fresult");
+          return;
+        }
+
+        try {
+          const result = await submitQuiz.mutateAsync(values);
+          clearPendingHomeReadinessQuiz();
+          navigate("/quiz/home-readiness/result", { state: result });
+        } catch (error) {
+          setFlowError(getErrorMessage(error, "We could not calculate your readiness result. Please try again."));
+        }
       })();
       return;
     }
-    setStepIndex((i) => i + 1);
+    const nextStepIndex = stepIndex + 1;
+    if (!isAuthenticated) savePendingHomeReadinessProgress(getValues(), nextStepIndex);
+    setStepIndex(nextStepIndex);
   }
 
   function goBack() {
     if (stepIndex === 0) {
-      navigate("/dashboard");
+      navigate(isAuthenticated ? "/dashboard" : "/");
     } else {
       setStepIndex((i) => Math.max(0, i - 1));
     }
@@ -166,15 +230,15 @@ export function HomeReadinessQuizPage() {
             <Progress value={((stepIndex + 1) / STEPS.length) * 100} className="h-2" />
           </div>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <motion.div
               key={step.id}
-              initial={{ opacity: 0, x: 40, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: -40, filter: "blur(4px)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.35, ease: "easeInOut" }}
             >
-              <MotionCard>
+              <MotionCard initial={false} animate={{}} whileHover={{}} transition={{ duration: 0 }}>
                 <CardHeader>
                   <CardTitle className="text-2xl">{step.question}</CardTitle>
                   {step.description && <p className="text-[#181818]/60 text-sm mt-1">{step.description}</p>}
@@ -184,21 +248,11 @@ export function HomeReadinessQuizPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="budgetMin">Minimum (NGN)</Label>
-                        <Input
-                          id="budgetMin"
-                          type="number"
-                          min={0}
-                          {...register("budgetRange.min", { valueAsNumber: true })}
-                        />
+                        <MoneyInput control={control} name="budgetRange.min" id="budgetMin" />
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="budgetMax">Maximum (NGN)</Label>
-                        <Input
-                          id="budgetMax"
-                          type="number"
-                          min={0}
-                          {...register("budgetRange.max", { valueAsNumber: true })}
-                        />
+                        <MoneyInput control={control} name="budgetRange.max" id="budgetMax" />
                       </div>
                       {errors.budgetRange?.max && (
                         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-2 text-sm text-red-600 font-medium">{errors.budgetRange.max.message}</motion.p>
@@ -209,12 +263,7 @@ export function HomeReadinessQuizPage() {
                   {step.id === "monthlyIncome" && (
                     <div className="space-y-1.5">
                       <Label htmlFor="monthlyIncome">Monthly income/contribution (NGN)</Label>
-                      <Input
-                        id="monthlyIncome"
-                        type="number"
-                        min={0}
-                        {...register("monthlyIncome", { valueAsNumber: true })}
-                      />
+                      <MoneyInput control={control} name="monthlyIncome" id="monthlyIncome" />
                       {errors.monthlyIncome && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-red-600 font-medium">{errors.monthlyIncome.message}</motion.p>}
                     </div>
                   )}
@@ -236,9 +285,7 @@ export function HomeReadinessQuizPage() {
                     <fieldset className="flex flex-col gap-2.5">
                       <legend className="sr-only">{step.question}</legend>
                       {RADIO_OPTIONS[step.id]!.map((option) => (
-                        <motion.label
-                          whileHover={{ scale: 1.01 }}
-                          whileTap={{ scale: 0.99 }}
+                        <label
                           key={option.value}
                           className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-4 text-sm font-medium transition-all duration-300 shadow-sm ${
                             selectedValue === option.value
@@ -258,7 +305,7 @@ export function HomeReadinessQuizPage() {
                             }
                           />
                           {option.label}
-                        </motion.label>
+                        </label>
                       ))}
                     </fieldset>
                   )}
@@ -268,13 +315,36 @@ export function HomeReadinessQuizPage() {
           </AnimatePresence>
 
           <div className="flex justify-between mt-4">
-            <Button type="button" variant="secondary" onClick={goBack} className="w-24">
+            {!isAuthenticated && isLastStep ? (
+              <p className="max-w-[16rem] text-xs leading-relaxed text-[#181818]/65" role="status">
+                Your answers are ready. Create a free account to save your score and open your dashboard.
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={goBack}
+              animate={{}}
+              whileHover={{}}
+              whileTap={{}}
+              className="w-24"
+            >
               Back
             </Button>
-            <Button type="button" onClick={goNext} disabled={submitQuiz.isPending} isLoading={submitQuiz.isPending} className="min-w-28 shadow-xl shadow-[#5C4033]/15">
-              {isLastStep ? "See results" : "Next"}
+            <Button
+              type="button"
+              onClick={goNext}
+              disabled={submitQuiz.isPending || isAuthLoading}
+              isLoading={submitQuiz.isPending}
+              animate={{}}
+              whileHover={{}}
+              whileTap={{}}
+              className="min-w-28 shadow-xl shadow-[#5C4033]/15"
+            >
+              {isLastStep ? (isAuthenticated ? "See my result" : "Get my result") : "Next"}
             </Button>
           </div>
+          {flowError ? <p className="mt-3 text-right text-sm font-medium text-red-600" role="alert">{flowError}</p> : null}
         </div>
       </div>
     </PageTransition>

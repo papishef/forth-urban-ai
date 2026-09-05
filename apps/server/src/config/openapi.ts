@@ -263,6 +263,11 @@ export const openApiDocument = {
         body: true,
         params: [{ name: "id" }],
       }),
+      delete: op("Remove a blog post cover image", ["Admin"], {
+        auth: "admin",
+        body: true,
+        params: [{ name: "id" }],
+      }),
     },
     "/admin/blog/{id}/publish": {
       post: op("Publish a blog post, optionally dispatching a newsletter campaign", ["Admin"], {
@@ -310,6 +315,17 @@ export const openApiDocument = {
         params: [{ name: "id" }],
       }),
     },
+    "/admin/billing/storage": { get: op("Get global storage usage and active plan", ["Admin"], { auth: "admin" }) },
+    "/admin/billing/payments": { get: op("List recent storage payments", ["Admin"], { auth: "admin" }) },
+    "/admin/billing/checkout": {
+      post: op("Create a Flutterwave recurring storage checkout", ["Admin"], { auth: "admin", body: true, successStatus: 201 }),
+    },
+    "/admin/billing/verify": {
+      post: op("Verify and activate a Flutterwave storage payment", ["Admin"], { auth: "admin", body: true }),
+    },
+    "/admin/billing/auto-renew": {
+      patch: op("Enable or cancel automatic storage renewal", ["Admin"], { auth: "admin", body: true }),
+    },
     "/admin/inspections": { get: op("List inspection bookings", ["Admin"], { auth: "admin" }) },
     "/admin/inspections/{id}": {
       patch: op("Update an inspection booking's status", ["Admin"], { auth: "admin", body: true, params: [{ name: "id" }] }),
@@ -353,6 +369,9 @@ export const openApiDocument = {
         params: [{ name: "key" }],
         successStatus: 201,
       }),
+    },
+    "/billing/webhook": {
+      post: op("Receive a signed Flutterwave charge webhook", ["Admin"], { auth: "none", body: true }),
     },
   },
 };

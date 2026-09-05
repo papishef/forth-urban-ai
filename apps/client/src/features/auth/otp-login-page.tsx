@@ -1,17 +1,16 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { otpRequestSchema, otpVerifySchema, type OtpRequestInput, type OtpVerifyInput } from "@forth-urban/validation";
 import { Button, Input, Label } from "@forth-urban/ui";
 import { useAuth } from "../../lib/auth-context";
 import { getErrorMessage } from "../../lib/api-error";
-import { getAdminLandingPath } from "../../lib/admin-access";
+import { useAuthFlowCompletion } from "./auth-flow";
 import { AuthLayout } from "./auth-layout";
 
 export function OtpLoginPage() {
   const { requestOtp, verifyOtp } = useAuth();
-  const navigate = useNavigate();
+  const { complete, retryPendingQuiz, authenticatedUser, isSavingQuiz, quizSaveError } = useAuthFlowCompletion();
   const [step, setStep] = React.useState<"request" | "verify">("request");
   const [email, setEmail] = React.useState("");
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -35,7 +34,7 @@ export function OtpLoginPage() {
     setServerError(null);
     try {
       const user = await verifyOtp(values);
-      navigate(getAdminLandingPath(user));
+      await complete(user);
     } catch (err) {
       setServerError(getErrorMessage(err, "Incorrect or expired code"));
     }
@@ -72,10 +71,17 @@ export function OtpLoginPage() {
             <p className="text-sm text-red-600">{verifyForm.formState.errors.code.message}</p>
           ) : null}
         </div>
-        {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
-        <Button type="submit" disabled={verifyForm.formState.isSubmitting} className="w-full">
-          {verifyForm.formState.isSubmitting ? "Verifying…" : "Verify & continue"}
-        </Button>
+        {serverError ? <p className="text-sm text-red-600" role="alert">{serverError}</p> : null}
+        {quizSaveError ? <p className="text-sm text-red-600" role="alert">{quizSaveError}</p> : null}
+        {authenticatedUser && quizSaveError ? (
+          <Button type="button" disabled={isSavingQuiz} onClick={() => void retryPendingQuiz()} className="w-full">
+            {isSavingQuiz ? "Saving your result…" : "Retry saving my result"}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={verifyForm.formState.isSubmitting || isSavingQuiz} className="w-full">
+            {isSavingQuiz ? "Saving your result…" : verifyForm.formState.isSubmitting ? "Verifying…" : "Verify & continue"}
+          </Button>
+        )}
       </form>
     </AuthLayout>
   );

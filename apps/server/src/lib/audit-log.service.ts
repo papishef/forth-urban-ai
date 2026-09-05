@@ -4,7 +4,7 @@ import { analyticsEventsForAuditAction, trackEvent } from "./analytics.js";
 
 export interface RecordAuditLogInput {
   actorId?: string | null;
-  actorType: "user" | "admin" | "system";
+  actorType: "user" | "admin" | "system" | "kiosk";
   action: string;
   targetType?: string | null;
   targetId?: string | null;
