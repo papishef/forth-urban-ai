@@ -2,16 +2,12 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app.js";
 import { Notification } from "./notification.model.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("notifications routes", () => {
   async function registerAndGetToken(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post("/api/auth/register").send({
-      firstName: "Ada",
-      lastName: "Lovelace",
-      email: "ada@example.com",
-      password: "supersecret123",
-    });
-    return { token: res.body.data.tokens.accessToken as string, userId: res.body.data.user.id as string };
+    const { token, userId } = await registerVerifiedUser(app, { email: "ada@example.com" });
+    return { token, userId };
   }
 
   it("rejects notification routes without an access token", async () => {

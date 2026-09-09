@@ -88,10 +88,23 @@ export async function installApiMocks(page: Page, state: MockState = { hasComple
       return jsonRoute(route, { success: false, message: "No session", data: null }, 401);
     }
     if (path === "/auth/register" && method === "POST") {
+      return jsonRoute(route, envelope({ email: "jane.e2e@example.com", requiresEmailVerification: true }));
+    }
+    if (path === "/auth/email-verification/verify" && method === "POST") {
       return jsonRoute(
         route,
-        envelope({ user, tokens: { accessToken: "mock-access-token", accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString() } }),
+        envelope({
+          user,
+          tokens: {
+            accessToken: "mock-access-token",
+            accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+            csrfToken: "mock-csrf-token",
+          },
+        }),
       );
+    }
+    if (path === "/auth/email-verification/resend" && method === "POST") {
+      return jsonRoute(route, envelope(null, "If an unverified account exists for this email, a new confirmation link has been sent"));
     }
     if (path === "/profiles/me" && method === "GET") {
       if (!state.hasCompletedQuiz) return jsonRoute(route, envelope(null));

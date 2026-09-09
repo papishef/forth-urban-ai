@@ -119,32 +119,32 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
                 </Link>
               );
             })}
+            {canReadAdminMenu(user, "kiosk") && (
+              <Link
+                to="/kiosk"
+                target="_blank"
+                onClick={() => setNavOpen(false)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
+                  location.pathname === "/kiosk" && "bg-white font-medium text-[#5C4033] shadow-sm",
+                )}
+              >
+                <Monitor className="h-4 w-4 shrink-0" />
+                Kiosk
+              </Link>
+            )}
             {user?.role === "admin" && (
-              <>
-                <Link
-                  to="/kiosk"
-                  target="_blank"
-                  onClick={() => setNavOpen(false)}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
-                    location.pathname === "/kiosk" && "bg-white font-medium text-[#5C4033] shadow-sm",
-                  )}
-                >
-                  <Monitor className="h-4 w-4 shrink-0" />
-                  Kiosk
-                </Link>
-                <Link
-                  to="/admin/sub-admins"
-                  onClick={() => setNavOpen(false)}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
-                    location.pathname === "/admin/sub-admins" && "bg-white font-medium text-[#5C4033] shadow-sm",
-                  )}
-                >
-                  <UserCog className="h-4 w-4 shrink-0" />
-                  Team & access
-                </Link>
-              </>
+              <Link
+                to="/admin/sub-admins"
+                onClick={() => setNavOpen(false)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#181818]/70 transition hover:bg-white/60",
+                  location.pathname === "/admin/sub-admins" && "bg-white font-medium text-[#5C4033] shadow-sm",
+                )}
+              >
+                <UserCog className="h-4 w-4 shrink-0" />
+                Team & access
+              </Link>
             )}
             <Link
               to="/profile"

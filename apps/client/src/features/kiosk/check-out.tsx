@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { useKiosk } from "./use-kiosk.js";
 import { playKioskErrorSound, playKioskSuccessSound } from "./kiosk-feedback";
-import { API_BASE_URL } from "../../lib/api-client.js";
+import { kioskFetch } from "./kiosk-api.js";
 
 async function readResponse(response: Response): Promise<{ message?: string; data?: { _id: string; durationMinutes?: number } }> {
   const text = await response.text();
@@ -16,7 +16,7 @@ async function readResponse(response: Response): Promise<{ message?: string; dat
 }
 
 export function CheckOutScreen() {
-  const { setSuccess, setError, reset } = useKiosk();
+  const { setSuccess, setError, reset, logout } = useKiosk();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<
     { _id: string; visitorName?: string; checkInTime: string; staffId?: { firstName: string; lastName: string } }[]
@@ -25,11 +25,13 @@ export function CheckOutScreen() {
 
   const checkOutMutation = useMutation({
     mutationFn: async (logId: string) => {
-      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/${logId}/check-out`, {
+      const response = await kioskFetch(`/attendance/kiosk/${logId}/check-out`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "" }),
       });
+
+      if (response.status === 401 || response.status === 403) logout();
 
       if (!response.ok) {
         const error = await readResponse(response);
@@ -64,7 +66,8 @@ export function CheckOutScreen() {
     setLoading(true);
     try {
       // Search for open logs
-      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/open-logs?q=${encodeURIComponent(query)}`);
+      const response = await kioskFetch(`/attendance/kiosk/open-logs?q=${encodeURIComponent(query)}`);
+      if (response.status === 401 || response.status === 403) logout();
       const data = await response.json();
 
       setResults(data.data || []);

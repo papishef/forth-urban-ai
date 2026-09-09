@@ -44,6 +44,10 @@ describe("Attendance Logs Tab", () => {
                 durationMinutes: 60,
                 purpose: "inspection",
                 isNoShow: false,
+                source: "kiosk",
+                deviceId: "office-tablet-01",
+                deviceIp: "192.168.1.20",
+                deviceUserAgent: "OfficeTablet/1.0",
               },
             ],
             pagination: {
@@ -60,6 +64,7 @@ describe("Attendance Logs Tab", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/John Doe/)).toBeInTheDocument();
+        expect(screen.getByText(/Kiosk office-tablet-01/)).toBeInTheDocument();
       });
     });
 

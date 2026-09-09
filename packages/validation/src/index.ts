@@ -27,6 +27,13 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const kioskLoginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Kiosk password is required"),
+  durationHours: z.number().int().min(1, "Choose at least 1 hour").max(24, "Kiosk access can last up to 24 hours"),
+});
+export type KioskLoginInput = z.infer<typeof kioskLoginSchema>;
+
 export const otpRequestSchema = z.object({
   email: emailSchema,
 });
@@ -37,6 +44,17 @@ export const otpVerifySchema = z.object({
   code: z.string().length(6, "Enter the 6-digit code"),
 });
 export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;
+
+export const emailVerificationSchema = z.object({
+  email: emailSchema,
+  token: z.string().trim().regex(/^[a-f\d]{64}$/i, "Invalid verification token"),
+});
+export type EmailVerificationInput = z.infer<typeof emailVerificationSchema>;
+
+export const resendEmailVerificationSchema = z.object({
+  email: emailSchema,
+});
+export type ResendEmailVerificationInput = z.infer<typeof resendEmailVerificationSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: emailSchema,
@@ -283,6 +301,7 @@ const adminMenuKeySchema = z.enum([
   "areas",
   "prompts",
   "logs",
+  "kiosk",
 ]);
 
 const adminMenuPermissionSchema = z
@@ -454,6 +473,11 @@ const roiAssumptionDefaultsSchema = z.object({
   moderate: z.number().min(0).max(5).optional(),
   optimistic: z.number().min(0).max(5).optional(),
 });
+
+export const adminSetKioskPasswordSchema = z.object({
+  kioskPassword: passwordSchema,
+});
+export type AdminSetKioskPasswordInput = z.infer<typeof adminSetKioskPasswordSchema>;
 
 export const adminUpdateSettingsSchema = z.object({
   propertyMatchWeights: propertyMatchWeightsSchema.optional(),

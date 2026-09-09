@@ -26,6 +26,7 @@ export const ADMIN_MENU_KEYS = [
   "prompts",
   "logs",
   "attendance",
+  "kiosk",
 ] as const;
 
 export type AdminMenuKey = (typeof ADMIN_MENU_KEYS)[number];
@@ -167,6 +168,22 @@ export interface AuthTokens {
 export interface AuthResponse {
   user: UserDTO;
   tokens: AuthTokens;
+}
+
+export interface RegistrationPendingDTO {
+  email: string;
+  requiresEmailVerification: true;
+}
+
+export interface KioskSessionDTO {
+  token: string;
+  expiresAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 /** JWT access token payload — kept minimal, no PII beyond email/role. */
@@ -554,6 +571,7 @@ export interface SettingsDTO {
     lifestyle: number;
   };
   roiAssumptionDefaults: PropertyRoiAssumptionsDTO;
+  kioskPasswordConfigured: boolean;
   updatedAt: string;
 }
 

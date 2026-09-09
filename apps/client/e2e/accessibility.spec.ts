@@ -52,6 +52,9 @@ test.describe("accessibility (axe-core, WCAG AA)", () => {
     await page.getByLabel("Email").fill("jane.e2e@example.com");
     await page.getByLabel(/^password$/i).fill("supersecret1");
     await page.getByRole("button", { name: /create account/i }).click();
+    await expect(page).toHaveURL(/\/verify-email\?email=jane\.e2e%40example\.com$/);
+    await page.goto("/verify-email?email=jane.e2e%40example.com&token=mock-email-token");
+    await page.getByRole("button", { name: /confirm email/i }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
 
     const dashboardResults = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();

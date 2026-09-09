@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("quiz routes", () => {
   const validHomeReadinessAnswers = {
@@ -16,13 +17,8 @@ describe("quiz routes", () => {
   };
 
   async function registerAndGetToken(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post("/api/auth/register").send({
-      firstName: "Ada",
-      lastName: "Lovelace",
-      email: "ada@example.com",
-      password: "supersecret123",
-    });
-    return res.body.data.tokens.accessToken as string;
+    const { token } = await registerVerifiedUser(app, { email: "ada@example.com" });
+    return token;
   }
 
   it("rejects quiz routes without an access token", async () => {

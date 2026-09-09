@@ -3,20 +3,22 @@
 ## Overview
 
 The Attendance Register is a two-part system:
-1. **Kiosk Interface** — Tablet-based check-in/check-out for staff and visitors (public entry point)
+1. **Kiosk Interface** — Tablet-based check-in/check-out for staff and visitors (authenticated entry point)
 2. **Admin Dashboard** — Analytics, reporting, staff management, and anomaly detection (admin-only)
 
 ---
 
 ## 1. User Entry Points
 
-### 1.1 Kiosk (Public/Unmanned)
+### 1.1 Kiosk (Protected Tablet)
 **URL:** `http://localhost:5173/kiosk`
 
-**Purpose:** Visitors and staff can self-check-in/check-out without admin involvement
+**Purpose:** Approved owner and sub-admin accounts can unlock the attendance tablet for a limited period before it locks itself again.
 
 **User Flow:**
 ```
+Kiosk Unlock (email + kiosk password + hours)
+   ↓
 Welcome Screen (select action)
     ↓
     ├─ [CHECK IN] → Type Select (Staff / Visitor)
@@ -29,6 +31,10 @@ After Success → Auto-reset after 3 seconds
 ```
 
 **Features:**
+- Email and kiosk-password gate; the owner admin always has access, while sub-admins need the `kiosk` permission grant
+- The kiosk password is configured only from the owner admin's Settings page
+- The selected duration is enforced by both the browser and the server-issued kiosk token (1-24 hours)
+- A persistent browser device ID, IP address, and user-agent are recorded with each kiosk check-in for audit review
 - 🎯 Tablet-optimized full-screen interface
 - 📝 Real-time staff/visitor search
 - 🔗 Link visitor check-ins to inspection bookings
@@ -80,8 +86,9 @@ The attendance link is now integrated into the admin sidebar:
 5. Check-Out time
 6. Duration in minutes
 7. Purpose/reason
-8. Status (checked out / pending / no-show)
-9. Actions (edit/delete)
+8. Device (kiosk device ID/IP or Admin console)
+9. Status (checked out / pending / no-show)
+10. Actions (edit/delete)
 
 **Loading State:** SkeletonGlass skeleton rows (5 rows × 9 columns) while fetching
 
@@ -199,6 +206,11 @@ GET    /api/admin/attendance/staff/search?q=name     — Search by name/email/ba
 
 ### **Attendance Logs**
 ```
+POST   /api/attendance/kiosk/login                    — Unlock kiosk for a selected duration (public login endpoint)
+GET    /api/attendance/kiosk/staff-search?q=name     — Search staff (kiosk session required)
+GET    /api/attendance/kiosk/open-logs?q=name       — Find open logs (kiosk session required)
+POST   /api/attendance/kiosk/check-in                — Record kiosk check-in + device metadata
+PATCH  /api/attendance/kiosk/:logId/check-out        — Record kiosk check-out
 POST   /api/admin/attendance/check-in                 — Record check-in (kiosk + admin)
 PATCH  /api/admin/attendance/:logId/check-out        — Record check-out
 GET    /api/admin/attendance/logs                    — List logs (paginated, filterable)
@@ -246,6 +258,8 @@ Sub Admin (role === "staff_admin" with "attendance" grant):
     - write: true  → Can edit/delete
     - write: false → Read-only
 ```
+
+The `kiosk` permission is separate from the `attendance` menu permission. The owner grants it in Team & access. A sub-admin may use the kiosk only when this grant is present; the owner-only Kiosk access password segment in Settings cannot be changed by a sub-admin.
 
 ### **Access Control Flow**
 ```

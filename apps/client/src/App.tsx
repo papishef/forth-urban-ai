@@ -14,6 +14,7 @@ import { NewsletterUnsubscribePage } from "./features/marketing/pages/newsletter
 import { NotFoundPage } from "./features/marketing/pages/not-found-page";
 import { LoginPage } from "./features/auth/login-page";
 import { RegisterPage } from "./features/auth/register-page";
+import { VerifyEmailPage } from "./features/auth/verify-email-page";
 import { OtpLoginPage } from "./features/auth/otp-login-page";
 import { ForgotPasswordPage } from "./features/auth/forgot-password-page";
 import { ResetPasswordPage } from "./features/auth/reset-password-page";
@@ -85,6 +86,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/otp" element={<OtpLoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/auth/google/success" element={<GoogleCallbackPage />} />

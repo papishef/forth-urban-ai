@@ -25,6 +25,7 @@ import {
   detectAnomalies,
 } from "./attendance-analytics.js";
 import { AttendanceLog } from "./attendance-log.model.js";
+import { getAttendanceDeviceContext } from "./attendance-device.js";
 
 /**
  * Attendance Register Admin Routes
@@ -202,7 +203,7 @@ attendanceAdminRouter.get("/staff-search", async (req, res, next) => {
  */
 attendanceAdminRouter.post("/check-in", validateBody(checkInInputSchema), async (req, res, next) => {
   try {
-    const log = await checkIn(req.body);
+    const log = await checkIn(req.body, getAttendanceDeviceContext(req, "admin", req.auth?.email));
 
     // Audit log (use "kiosk" as actor if no auth, or use authenticated admin)
     await recordAuditLog({
@@ -215,6 +216,7 @@ attendanceAdminRouter.post("/check-in", validateBody(checkInInputSchema), async 
         type: log.type,
         visitorName: log.visitorName,
         purpose: log.purpose,
+        deviceId: log.deviceId,
       },
     });
 
@@ -244,6 +246,7 @@ attendanceAdminRouter.patch(
         targetId: log._id.toString(),
         metadata: {
           durationMinutes: log.durationMinutes,
+          deviceId: log.deviceId,
         },
       });
 
@@ -369,7 +372,7 @@ attendanceAdminRouter.get("/report", requireAdminPermission("attendance", "read"
       .sort({ checkInTime: -1 });
 
     // Generate CSV
-    const headers = ["Date", "Name", "Type", "Department", "Check-In", "Check-Out", "Duration (mins)", "Purpose", "Sales Rep", "Notes"];
+    const headers = ["Date", "Name", "Type", "Department", "Check-In", "Check-Out", "Duration (mins)", "Purpose", "Sales Rep", "Device ID", "Device IP", "Notes"];
     const rows = logs.map((log) => {
       const staff = log.staffId as unknown as { firstName?: string; lastName?: string; department?: string } | null;
       const salesRepRef = log.assignedSalesRep as unknown as { firstName?: string; lastName?: string } | null;
@@ -387,6 +390,8 @@ attendanceAdminRouter.get("/report", requireAdminPermission("attendance", "read"
         log.durationMinutes || "N/A",
         log.purpose,
         salesRep,
+        log.deviceId || "N/A",
+        log.deviceIp || "N/A",
         log.notes || "",
       ];
     });

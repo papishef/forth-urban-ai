@@ -5,8 +5,8 @@
 import * as React from "react";
 import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AuthResponse, UserDTO } from "@forth-urban/shared-types";
-import type { LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
+import type { AuthResponse, RegistrationPendingDTO, UserDTO } from "@forth-urban/shared-types";
+import type { EmailVerificationInput, LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
 import { apiClient, setAccessToken, setAdminAccessDeniedHandler, setCsrfToken, setSessionExpiredHandler } from "./api-client";
 import { identifyAnalyticsUser, resetAnalytics } from "./analytics";
 
@@ -21,7 +21,9 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<UserDTO>;
-  register: (input: RegisterInput) => Promise<UserDTO>;
+  register: (input: RegisterInput) => Promise<RegistrationPendingDTO>;
+  verifyEmail: (input: EmailVerificationInput) => Promise<UserDTO>;
+  resendEmailVerification: (email: string) => Promise<void>;
   verifyOtp: (input: OtpVerifyInput) => Promise<UserDTO>;
   requestOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -137,10 +139,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (input: RegisterInput) => {
-      const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/register", input);
+      const res = await apiClient.post<ApiEnvelope<RegistrationPendingDTO>>("/auth/register", input);
+      return res.data.data!;
+    },
+  });
+
+  const verifyEmailMutation = useMutation({
+    mutationFn: async (input: EmailVerificationInput) => {
+      const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/email-verification/verify", input);
       return applyAuthResponse(res.data.data!);
     },
     onSuccess: (user) => setUser(user),
+  });
+
+  const resendEmailVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      await apiClient.post("/auth/email-verification/resend", { email });
+    },
   });
 
   const verifyOtpMutation = useMutation({
@@ -176,6 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: user !== null,
     login: (input) => loginMutation.mutateAsync(input),
     register: (input) => registerMutation.mutateAsync(input),
+    verifyEmail: (input) => verifyEmailMutation.mutateAsync(input),
+    resendEmailVerification: (email) => resendEmailVerificationMutation.mutateAsync(email).then(() => undefined),
     verifyOtp: (input) => verifyOtpMutation.mutateAsync(input),
     requestOtp: (email) => requestOtpMutation.mutateAsync(email).then(() => undefined),
     logout: () => logoutMutation.mutateAsync(),

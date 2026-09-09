@@ -167,7 +167,7 @@ Every collection includes `createdAt`, `updatedAt`, `deletedAt` (soft delete), `
 
 | Collection | Key fields |
 |---|---|
-| `users` | firstName, lastName, email (unique), passwordHash?, authProvider (local/google), googleId?, emailVerified, whatsappNumber, currentCity, currentCountry, isDiaspora, role (`user`/owner `admin`), status, adminAccess? {title, ownerId, permissions {menu: {read, write}}, grantedAt, updatedAt} |
+| `users` | firstName, lastName, email (unique), passwordHash?, authProvider (local/google), googleId?, emailVerified (local password accounts must confirm before a session is issued), whatsappNumber, currentCity, currentCountry, isDiaspora, role (`user`/owner `admin`), status, adminAccess? {title, ownerId, permissions {menu: {read, write}}, grantedAt, updatedAt} |
 | `profiles` | userId (ref), buyerGoal, budgetRange {min,max}, monthlyIncome, paymentStyle, timeline, preferredArea, lifestylePreference, biggestFear, inspectionPreference, buyerPersona, leadCategory, readinessScore |
 | `quizResponses` | userId (ref), quizType (homeReadiness/area), answers[{questionKey, answer}], readinessScore, resultType, completedAt |
 | `properties` | name, estateName, location {address, landmarks, lat, lng}, pricePerPlot, plotSizes[], titleType, documentationStatus, paymentPlans[], bestFitBuyerTypes[], developmentStatus, inspectionAvailability {physical, virtual}, hiddenCostRules[], roiAssumptions {conservative, moderate, optimistic}, media {photos[], videos[], googleMapsUrl, brochureUrl, titleDocuments[]}, isActive |

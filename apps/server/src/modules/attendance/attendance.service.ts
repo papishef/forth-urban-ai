@@ -4,6 +4,7 @@ import { User } from "../users/index.js";
 import { InspectionBooking } from "../inspections/inspection-booking.model.js";
 import { ApiError } from "../../middleware/error-handler.js";
 import type { StaffInput, StaffUpdateInput, CheckInInput, CheckOutInput } from "@forth-urban/validation";
+import type { AttendanceDeviceContext } from "./attendance-device.js";
 
 /**
  * Staff CRUD operations
@@ -77,7 +78,16 @@ export async function deleteStaff(id: string): Promise<void> {
 /**
  * Attendance Log operations
  */
-export async function checkIn(input: CheckInInput): Promise<AttendanceLogDocument> {
+export async function checkIn(
+  input: CheckInInput,
+  device: AttendanceDeviceContext = {
+    source: "admin",
+    deviceId: null,
+    ipAddress: null,
+    userAgent: null,
+    actorEmail: null,
+  },
+): Promise<AttendanceLogDocument> {
   const log = new AttendanceLog({
     type: input.type,
     staffId: input.type === "staff" ? input.staffId : null,
@@ -88,7 +98,11 @@ export async function checkIn(input: CheckInInput): Promise<AttendanceLogDocumen
     linkedInspectionId: input.linkedInspectionId || null,
     checkInTime: new Date(),
     notes: input.notes,
-    checkedInBy: input.checkedInBy,
+    checkedInBy: input.checkedInBy ?? device.actorEmail,
+    source: device.source,
+    deviceId: device.deviceId,
+    deviceIp: device.ipAddress,
+    deviceUserAgent: device.userAgent,
     assignedSalesRep: input.assignedSalesRep || null,
   });
 

@@ -21,7 +21,7 @@ const pendingAnswers: HomeReadinessAnswers = {
   biggestFear: "affordability",
   inspectionPreference: "physical",
 };
-const mockUser = { id: "user-1", role: "user" };
+const mockPendingRegistration = { email: "jane@example.com", requiresEmailVerification: true as const };
 
 vi.mock("../../lib/auth-context", () => ({
   useAuth: () => ({ register: mockRegister }),
@@ -54,6 +54,7 @@ describe("RegisterPage", () => {
     mockNavigate.mockReset();
     mockSubmitPendingQuiz.mockReset();
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it("shows validation errors when submitted empty", async () => {
@@ -69,7 +70,7 @@ describe("RegisterPage", () => {
   });
 
   it("submits valid details and navigates to the dashboard", async () => {
-    mockRegister.mockResolvedValue(mockUser);
+    mockRegister.mockResolvedValue(mockPendingRegistration);
     renderPage();
 
     await userEvent.type(screen.getByLabelText(/first name/i), "Jane");
@@ -86,13 +87,12 @@ describe("RegisterPage", () => {
         password: "supersecret",
       }),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard", { replace: true }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/verify-email?email=jane%40example.com", { replace: true }));
   });
 
-  it("submits the pending readiness quiz after registration", async () => {
+  it("preserves the pending readiness destination until email verification", async () => {
     savePendingHomeReadinessQuiz(pendingAnswers);
-    mockRegister.mockResolvedValue(mockUser);
-    mockSubmitPendingQuiz.mockResolvedValue({ score: 72 });
+    mockRegister.mockResolvedValue(mockPendingRegistration);
     renderPage("/register?next=%2Fquiz%2Fhome-readiness%2Fresult");
 
     await userEvent.type(screen.getByLabelText(/first name/i), "Jane");
@@ -101,38 +101,14 @@ describe("RegisterPage", () => {
     await userEvent.type(screen.getByLabelText(/^password$/i), "supersecret");
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
-    await waitFor(() => expect(mockSubmitPendingQuiz).toHaveBeenCalledWith(pendingAnswers));
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith("/quiz/home-readiness/result", {
-        replace: true,
-        state: { score: 72 },
-      }),
+      expect(mockNavigate).toHaveBeenCalledWith(
+        "/verify-email?email=jane%40example.com&next=%2Fquiz%2Fhome-readiness%2Fresult",
+        { replace: true },
+      ),
     );
-    expect(getPendingHomeReadinessQuiz()).toBeNull();
-  });
-
-  it("keeps the account and offers a retry when saving the readiness result fails", async () => {
-    savePendingHomeReadinessQuiz(pendingAnswers);
-    mockRegister.mockResolvedValue(mockUser);
-    mockSubmitPendingQuiz.mockRejectedValueOnce(new Error("Temporary quiz service error"));
-    renderPage("/register?next=%2Fquiz%2Fhome-readiness%2Fresult");
-
-    await userEvent.type(screen.getByLabelText(/first name/i), "Jane");
-    await userEvent.type(screen.getByLabelText(/last name/i), "Doe");
-    await userEvent.type(screen.getByLabelText(/email/i), "jane@example.com");
-    await userEvent.type(screen.getByLabelText(/^password$/i), "supersecret");
-    await userEvent.click(screen.getByRole("button", { name: /create account/i }));
-
-    expect(await screen.findByText(/temporary quiz service error/i)).toBeInTheDocument();
-    expect(mockRegister).toHaveBeenCalledTimes(1);
-    mockSubmitPendingQuiz.mockResolvedValue({ score: 72 });
-    await userEvent.click(screen.getByRole("button", { name: /retry saving my result/i }));
-
-    await waitFor(() => expect(mockSubmitPendingQuiz).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/quiz/home-readiness/result", {
-      replace: true,
-      state: { score: 72 },
-    }));
+    expect(mockSubmitPendingQuiz).not.toHaveBeenCalled();
+    expect(getPendingHomeReadinessQuiz()).toEqual(pendingAnswers);
   });
 
   it("shows a server error message when registration fails", async () => {

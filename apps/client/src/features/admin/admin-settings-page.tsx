@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, BuildingLoader, Card, CardContent, CardHeader, CardTitle, Input, Label, StorageMeter } from "@forth-urban/ui";
-import { useAdminSetStorageAutoRenew, useAdminSettings, useAdminStorageStatus, useAdminUpdateSettings } from "./admin-api";
+import { useAdminSetKioskPassword, useAdminSetStorageAutoRenew, useAdminSettings, useAdminStorageStatus, useAdminUpdateSettings } from "./admin-api";
 import { AdminLayout } from "./admin-layout";
 import { canWriteAdminMenu } from "../../lib/admin-access";
 import { useAuth } from "../../lib/auth-context";
@@ -115,12 +115,66 @@ function SettingsForm({
   );
 }
 
+function KioskPasswordSettingsCard({
+  configured,
+  isOwner,
+}: {
+  configured: boolean;
+  isOwner: boolean;
+}) {
+  const updatePassword = useAdminSetKioskPassword();
+  const [password, setPassword] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+
+  const onSave = async () => {
+    if (!password.trim()) return;
+    setError(null);
+    try {
+      await updatePassword.mutateAsync({ kioskPassword: password });
+      setPassword("");
+    } catch (err) {
+      setError(getErrorMessage(err, "The kiosk password could not be updated."));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Kiosk access password</CardTitle>
+        <p className="text-sm leading-relaxed text-[#181818]/60">
+          This shared password unlocks the attendance kiosk for the owner and sub-admins granted kiosk access. Only the owner admin can set or replace it.
+        </p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Label htmlFor="kiosk-password">{configured ? "Replace kiosk password" : "Set kiosk password"}</Label>
+          <Input
+            id="kiosk-password"
+            type="password"
+            value={password}
+            disabled={!isOwner}
+            autoComplete="new-password"
+            placeholder={configured ? "Enter a new password" : "At least 8 characters"}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+        <Button onClick={() => void onSave()} disabled={!isOwner || !password.trim() || updatePassword.isPending}>
+          {updatePassword.isPending ? "Saving…" : configured ? "Replace password" : "Set password"}
+        </Button>
+        {configured && <span className="text-xs font-semibold text-emerald-700">Configured</span>}
+        {error && <p className="text-sm font-medium text-red-700">{error}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** ROI assumption defaults + property-matching rule weights editor — Decision Engine consumes these directly, no redeploy needed. */
 export function AdminSettingsPage() {
   const { data, isLoading } = useAdminSettings();
   const storage = useAdminStorageStatus();
   const { user } = useAuth();
   const canWrite = canWriteAdminMenu(user, "settings");
+  const isOwner = user?.role === "admin";
   const [showPricing, setShowPricing] = React.useState(false);
 
   return (
@@ -140,6 +194,9 @@ export function AdminSettingsPage() {
           ) : (
             <Card className="mb-6 border-amber-200 bg-amber-50/60"><CardContent className="py-4 text-sm text-amber-800">Storage status is temporarily unavailable.</CardContent></Card>
           )}
+          <div className="mb-6">
+            <KioskPasswordSettingsCard configured={data.kioskPasswordConfigured} isOwner={isOwner} />
+          </div>
           <SettingsForm
             initialWeights={data.propertyMatchWeights as Record<string, number>}
             initialRoi={data.roiAssumptionDefaults as unknown as Record<string, number>}

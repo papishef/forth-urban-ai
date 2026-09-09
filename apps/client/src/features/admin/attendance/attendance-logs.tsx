@@ -15,6 +15,16 @@ interface AttendanceLog {
   purpose: string;
   isNoShow: boolean;
   notes?: string;
+  source?: "kiosk" | "admin" | null;
+  deviceId?: string | null;
+  deviceIp?: string | null;
+  deviceUserAgent?: string | null;
+}
+
+function deviceLabel(log: AttendanceLog): string {
+  if (log.source === "kiosk") return `Kiosk ${log.deviceId || "unidentified"}`;
+  if (log.source === "admin") return "Admin console";
+  return "Unknown";
 }
 
 export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end: Date } }) {
@@ -122,6 +132,7 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               <th className="px-6 py-3 text-left text-sm font-semibold">Check-In</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Check-Out</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Duration</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold">Device</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Purpose</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
             </tr>
@@ -131,7 +142,7 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               <>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={`skeleton-${i}`} style={{ borderBottom: "1px solid #E8D5C4" }}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 9 }).map((_, j) => (
                       <td key={`cell-${i}-${j}`} className="px-6 py-4">
                         <SkeletonGlass className="h-4 w-full" />
                       </td>
@@ -141,7 +152,7 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
               </>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center" style={{ color: "#999" }}>
+                <td colSpan={9} className="px-6 py-4 text-center" style={{ color: "#999" }}>
                   No records found
                 </td>
               </tr>
@@ -177,6 +188,17 @@ export function AttendanceLogsTab({ dateRange }: { dateRange: { start: Date; end
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {log.durationMinutes ? `${log.durationMinutes}m` : "-"}
+                  </td>
+                  <td className="max-w-[18rem] px-6 py-4 text-sm">
+                    <div className="font-semibold">{deviceLabel(log)}</div>
+                    {log.source === "kiosk" && log.deviceIp && (
+                      <div className="text-xs text-[#181818]/55">IP {log.deviceIp}</div>
+                    )}
+                    {log.source === "kiosk" && log.deviceUserAgent && (
+                      <div className="truncate text-xs text-[#181818]/45" title={log.deviceUserAgent}>
+                        {log.deviceUserAgent}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">{log.purpose}</td>
                   <td className="px-6 py-4 text-sm">

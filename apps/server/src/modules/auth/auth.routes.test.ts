@@ -1,13 +1,19 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import request from "supertest";
+import { User } from "../users/user.model.js";
+import { signAccessToken } from "./jwt.util.js";
 
-const emailCalls: Array<{ code?: string; resetUrl?: string }> = [];
+const emailCalls: Array<{ code?: string; resetUrl?: string; verificationUrl?: string }> = [];
 
 vi.mock("../../lib/email.service.js", () => ({
   sendEmail: vi.fn().mockResolvedValue(undefined),
   otpEmailHtml: (code: string) => {
     emailCalls.push({ code });
     return `<p>${code}</p>`;
+  },
+  emailVerificationEmailHtml: (verificationUrl: string) => {
+    emailCalls.push({ verificationUrl });
+    return `<p>${verificationUrl}</p>`;
   },
   passwordResetEmailHtml: (resetUrl: string) => {
     emailCalls.push({ resetUrl });
@@ -23,12 +29,31 @@ function extractCookie(res: request.Response, name: string): string | undefined 
   return raw?.split(";")[0]?.split("=")[1];
 }
 
+async function verifyLatestEmail(app: ReturnType<typeof createApp>, email: string) {
+  const verificationUrl = [...emailCalls].reverse().find((call) => call.verificationUrl)?.verificationUrl;
+  expect(verificationUrl).toBeDefined();
+  const token = new URL(verificationUrl!).searchParams.get("token");
+  return request(app).post("/api/auth/email-verification/verify").send({ email, token });
+}
+
+async function registerAndVerify(app: ReturnType<typeof createApp>, email: string, password = "supersecret123") {
+  await request(app).post("/api/auth/register").send({
+    firstName: "Ada",
+    lastName: "Lovelace",
+    email,
+    password,
+  });
+  const verifyRes = await verifyLatestEmail(app, email);
+  expect(verifyRes.status).toBe(200);
+  return verifyRes;
+}
+
 describe("auth routes", () => {
   beforeEach(() => {
     emailCalls.length = 0;
   });
 
-  it("registers a new user and issues tokens + cookies", async () => {
+  it("registers a pending user and sends an email confirmation link without issuing a session", async () => {
     const app = createApp();
     const res = await request(app).post("/api/auth/register").send({
       firstName: "Ada",
@@ -38,10 +63,20 @@ describe("auth routes", () => {
     });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.user.email).toBe("ada@example.com");
-    expect(res.body.data.tokens.accessToken).toBeTypeOf("string");
-    expect(extractCookie(res, "refreshToken")).toBeDefined();
-    expect(extractCookie(res, "csrfToken")).toBeDefined();
+    expect(res.body.data).toEqual({ email: "ada@example.com", requiresEmailVerification: true });
+    expect(extractCookie(res, "refreshToken")).toBeUndefined();
+    expect(extractCookie(res, "csrfToken")).toBeUndefined();
+    expect(emailCalls[0]?.verificationUrl).toContain("/verify-email?");
+
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "ada@example.com", password: "supersecret123" });
+    expect(login.status).toBe(403);
+
+    const verifyRes = await verifyLatestEmail(app, "ada@example.com");
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body.data.user.emailVerified).toBe(true);
+    expect(verifyRes.body.data.tokens.accessToken).toBeTypeOf("string");
   });
 
   it("rejects duplicate registration", async () => {
@@ -61,6 +96,71 @@ describe("auth routes", () => {
     expect(res.status).toBe(409);
   });
 
+  it("consumes an email confirmation link after the first successful use", async () => {
+    const app = createApp();
+    await request(app).post("/api/auth/register").send({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "single-use@example.com",
+      password: "supersecret123",
+    });
+
+    const firstVerification = await verifyLatestEmail(app, "single-use@example.com");
+    expect(firstVerification.status).toBe(200);
+
+    const verificationUrl = [...emailCalls].reverse().find((call) => call.verificationUrl)?.verificationUrl;
+    const token = new URL(verificationUrl!).searchParams.get("token");
+    const secondVerification = await request(app)
+      .post("/api/auth/email-verification/verify")
+      .send({ email: "single-use@example.com", token });
+    expect(secondVerification.status).toBe(400);
+  });
+
+  it("rejects a bearer token for an unverified account", async () => {
+    const app = createApp();
+    await request(app).post("/api/auth/register").send({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "unverified-token@example.com",
+      password: "supersecret123",
+    });
+    const user = await User.findOne({ email: "unverified-token@example.com" });
+    expect(user).not.toBeNull();
+    const accessToken = signAccessToken({
+      sub: user!._id.toString(),
+      role: "user",
+      email: user!.email,
+    });
+
+    const res = await request(app)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${accessToken}`);
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/confirm your email/i);
+  });
+
+  it("resends confirmation without revealing whether an account exists", async () => {
+    const app = createApp();
+    const missing = await request(app)
+      .post("/api/auth/email-verification/resend")
+      .send({ email: "missing@example.com" });
+    expect(missing.status).toBe(200);
+    expect(missing.body.message).toMatch(/if an unverified account exists/i);
+    expect(emailCalls).toHaveLength(0);
+
+    await request(app).post("/api/auth/register").send({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "resend@example.com",
+      password: "supersecret123",
+    });
+    const resend = await request(app)
+      .post("/api/auth/email-verification/resend")
+      .send({ email: "resend@example.com" });
+    expect(resend.status).toBe(200);
+    expect(resend.body.message).toMatch(/if an unverified account exists/i);
+  });
+
   it("logs in with correct credentials and rejects wrong password", async () => {
     const app = createApp();
     await request(app).post("/api/auth/register").send({
@@ -78,22 +178,20 @@ describe("auth routes", () => {
     const goodLogin = await request(app)
       .post("/api/auth/login")
       .send({ email: "grace@example.com", password: "supersecret123" });
-    expect(goodLogin.status).toBe(200);
-    expect(goodLogin.body.data.user.email).toBe("grace@example.com");
+    expect(goodLogin.status).toBe(403);
+
+    await verifyLatestEmail(app, "grace@example.com");
+    const verifiedLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "grace@example.com", password: "supersecret123" });
+    expect(verifiedLogin.status).toBe(200);
+    expect(verifiedLogin.body.data.user.email).toBe("grace@example.com");
   });
 
   it("verifies the caller's own password, rejecting a wrong one and requiring auth", async () => {
     const app = createApp();
-    await request(app).post("/api/auth/register").send({
-      firstName: "Alan",
-      lastName: "Turing",
-      email: "alan@example.com",
-      password: "supersecret123",
-    });
-    const login = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "alan@example.com", password: "supersecret123" });
-    const token = login.body.data.tokens.accessToken as string;
+    const verifyRes = await registerAndVerify(app, "alan@example.com");
+    const token = verifyRes.body.data.tokens.accessToken as string;
 
     const noAuth = await request(app).post("/api/auth/password/verify").send({ password: "supersecret123" });
     expect(noAuth.status).toBe(401);
@@ -114,13 +212,8 @@ describe("auth routes", () => {
 
   it("changes a local password, rotates the session, and invalidates the old credential", async () => {
     const app = createApp();
-    const login = await request(app).post("/api/auth/register").send({
-      firstName: "Dorothy",
-      lastName: "Hodgkin",
-      email: "dorothy@example.com",
-      password: "originalpass1",
-    });
-    const oldToken = login.body.data.tokens.accessToken as string;
+    const verifyRes = await registerAndVerify(app, "dorothy@example.com", "originalpass1");
+    const oldToken = verifyRes.body.data.tokens.accessToken as string;
 
     const change = await request(app)
       .post("/api/auth/password/change")
@@ -171,13 +264,20 @@ describe("auth routes", () => {
     const app = createApp();
     const agent = request.agent(app);
 
-    const registerRes = await agent.post("/api/auth/register").send({
+    await agent.post("/api/auth/register").send({
       firstName: "Alan",
       lastName: "Turing",
       email: "alan@example.com",
       password: "supersecret123",
     });
-    const csrfToken = extractCookie(registerRes, "csrfToken")!;
+    const verificationUrl = [...emailCalls].reverse().find((call) => call.verificationUrl)?.verificationUrl;
+    const token = new URL(verificationUrl!).searchParams.get("token");
+    const verifyRes = await agent.post("/api/auth/email-verification/verify").send({
+      email: "alan@example.com",
+      token,
+    });
+    expect(verifyRes.status).toBe(200);
+    const csrfToken = extractCookie(verifyRes, "csrfToken")!;
 
     const refreshRes = await agent.post("/api/auth/refresh").set("x-csrf-token", csrfToken);
     expect(refreshRes.status).toBe(200);
@@ -197,6 +297,13 @@ describe("auth routes", () => {
       email: "margaret@example.com",
       password: "supersecret123",
     });
+    const verificationUrl = [...emailCalls].reverse().find((call) => call.verificationUrl)?.verificationUrl;
+    const token = new URL(verificationUrl!).searchParams.get("token");
+    const verifyRes = await agent.post("/api/auth/email-verification/verify").send({
+      email: "margaret@example.com",
+      token,
+    });
+    expect(verifyRes.status).toBe(200);
 
     const res = await agent.post("/api/auth/refresh").set("x-csrf-token", "not-the-real-token");
     expect(res.status).toBe(403);
@@ -204,15 +311,10 @@ describe("auth routes", () => {
 
   it("completes the forgot/reset password flow and invalidates old sessions", async () => {
     const app = createApp();
-    await request(app).post("/api/auth/register").send({
-      firstName: "Katherine",
-      lastName: "Johnson",
-      email: "katherine@example.com",
-      password: "originalpass1",
-    });
+    await registerAndVerify(app, "katherine@example.com", "originalpass1");
 
     await request(app).post("/api/auth/password/forgot").send({ email: "katherine@example.com" });
-    const resetUrl = emailCalls[0]?.resetUrl;
+    const resetUrl = [...emailCalls].reverse().find((call) => call.resetUrl)?.resetUrl;
     expect(resetUrl).toBeDefined();
     const token = new URL(resetUrl!).searchParams.get("token");
 

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("users routes", () => {
   async function registerAndGetToken(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post("/api/auth/register").send({
+    const { token } = await registerVerifiedUser(app, {
       firstName: "Rosalind",
       lastName: "Franklin",
       email: "rosalind@example.com",
-      password: "supersecret123",
     });
-    return res.body.data.tokens.accessToken as string;
+    return token;
   }
 
   it("rejects GET /me without an access token", async () => {

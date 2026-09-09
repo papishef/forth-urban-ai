@@ -17,6 +17,8 @@ import { applyBaseSchema } from "../../db/base-schema.plugin.js";
  * - durationMinutes: calculated on checkout as (checkOutTime - checkInTime) / 60000
  * - notes: optional notes added during check-in or checkout
  * - checkedInBy: name/ID of person who recorded the check-in (e.g., receptionist or self)
+ * - source: whether the record was created from the kiosk or an admin console
+ * - deviceId/deviceIp/deviceUserAgent: audit metadata for the check-in device
  * - assignedSalesRep: ObjectId ref to User (sales rep assigned to this visitor)
  * - isNoShow: boolean, auto-set to true if checkOutTime is null and (now - checkInTime) > 360 min (6h)
  */
@@ -33,6 +35,10 @@ const attendanceLogSchema = new Schema({
   durationMinutes: { type: Number, default: null },
   notes: { type: String, default: null, trim: true, maxlength: 500 },
   checkedInBy: { type: String, default: null, trim: true },
+  source: { type: String, enum: ["kiosk", "admin"], default: null, index: true },
+  deviceId: { type: String, default: null, trim: true, maxlength: 128, index: true },
+  deviceIp: { type: String, default: null, trim: true, maxlength: 128 },
+  deviceUserAgent: { type: String, default: null, trim: true, maxlength: 500 },
   assignedSalesRep: { type: Schema.Types.ObjectId, ref: "User", default: null },
   isNoShow: { type: Boolean, default: false, index: true },
   deletedAt: { type: Date, default: null },

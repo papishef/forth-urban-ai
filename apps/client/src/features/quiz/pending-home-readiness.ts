@@ -39,71 +39,101 @@ function getSessionStorage(): Storage | null {
   }
 }
 
+function getLocalStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 export function savePendingHomeReadinessQuiz(answers: HomeReadinessAnswers): boolean {
   const parsed = homeReadinessAnswersSchema.safeParse(answers);
-  const storage = getSessionStorage();
-  if (!parsed.success || !storage) return false;
+  const localStorage = getLocalStorage();
+  const sessionStorage = getSessionStorage();
+  if (!parsed.success || (!localStorage && !sessionStorage)) return false;
+
+  const serialized = JSON.stringify({
+    version: PENDING_HOME_READINESS_VERSION,
+    savedAt: Date.now(),
+    answers: parsed.data,
+  } satisfies PendingHomeReadinessDraft);
 
   try {
-    storage.setItem(
-      PENDING_HOME_READINESS_KEY,
-      JSON.stringify({
-        version: PENDING_HOME_READINESS_VERSION,
-        savedAt: Date.now(),
-        answers: parsed.data,
-      } satisfies PendingHomeReadinessDraft),
-    );
-    storage.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
-    storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+    if (localStorage) {
+      localStorage.setItem(PENDING_HOME_READINESS_KEY, serialized);
+      sessionStorage?.removeItem(PENDING_HOME_READINESS_KEY);
+    } else {
+      sessionStorage!.setItem(PENDING_HOME_READINESS_KEY, serialized);
+    }
+    sessionStorage?.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
+    localStorage?.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+    sessionStorage?.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
     return true;
   } catch {
+    if (localStorage && sessionStorage) {
+      try {
+        sessionStorage.setItem(PENDING_HOME_READINESS_KEY, serialized);
+        sessionStorage.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
+        sessionStorage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+        return true;
+      } catch {
+        return false;
+      }
+    }
     return false;
   }
 }
 
 export function getPendingHomeReadinessQuiz(): HomeReadinessAnswers | null {
-  const storage = getSessionStorage();
-  if (!storage) return null;
+  for (const storage of [getLocalStorage(), getSessionStorage()]) {
+    if (!storage) continue;
 
-  try {
-    const raw = storage.getItem(PENDING_HOME_READINESS_KEY);
-    if (!raw) return null;
+    try {
+      const raw = storage.getItem(PENDING_HOME_READINESS_KEY);
+      if (!raw) continue;
 
-    const parsedDraft: unknown = JSON.parse(raw);
-    if (!isRecord(parsedDraft)) {
-      storage.removeItem(PENDING_HOME_READINESS_KEY);
-      return null;
+      const parsedDraft: unknown = JSON.parse(raw);
+      if (!isRecord(parsedDraft)) {
+        storage.removeItem(PENDING_HOME_READINESS_KEY);
+        storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+        continue;
+      }
+
+      const savedAt = parsedDraft.savedAt;
+      const now = Date.now();
+      if (
+        parsedDraft.version !== PENDING_HOME_READINESS_VERSION ||
+        typeof savedAt !== "number" ||
+        !Number.isFinite(savedAt) ||
+        savedAt > now + 5 * 60 * 1000 ||
+        now - savedAt > PENDING_HOME_READINESS_MAX_AGE_MS
+      ) {
+        storage.removeItem(PENDING_HOME_READINESS_KEY);
+        storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+        continue;
+      }
+
+      const answers = homeReadinessAnswersSchema.safeParse(parsedDraft.answers);
+      if (!answers.success) {
+        storage.removeItem(PENDING_HOME_READINESS_KEY);
+        storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+        continue;
+      }
+
+      return answers.data;
+    } catch {
+      continue;
     }
-
-    const savedAt = parsedDraft.savedAt;
-    const now = Date.now();
-    if (
-      parsedDraft.version !== PENDING_HOME_READINESS_VERSION ||
-      typeof savedAt !== "number" ||
-      !Number.isFinite(savedAt) ||
-      savedAt > now + 5 * 60 * 1000 ||
-      now - savedAt > PENDING_HOME_READINESS_MAX_AGE_MS
-    ) {
-      storage.removeItem(PENDING_HOME_READINESS_KEY);
-      storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
-      return null;
-    }
-
-    const answers = homeReadinessAnswersSchema.safeParse(parsedDraft.answers);
-    if (!answers.success) {
-      storage.removeItem(PENDING_HOME_READINESS_KEY);
-      storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
-      return null;
-    }
-
-    return answers.data;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 export function savePendingHomeReadinessProgress(
@@ -195,20 +225,21 @@ export function getPendingHomeReadinessProgress(): HomeReadinessProgress | null 
 }
 
 export function clearPendingHomeReadinessQuiz(): void {
-  const storage = getSessionStorage();
-  if (!storage) return;
+  for (const storage of [getLocalStorage(), getSessionStorage()]) {
+    if (!storage) continue;
 
-  try {
-    storage.removeItem(PENDING_HOME_READINESS_KEY);
-    storage.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
-    storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
-  } catch {
-    // Storage can be unavailable in privacy-restricted browser contexts.
+    try {
+      storage.removeItem(PENDING_HOME_READINESS_KEY);
+      storage.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
+      storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
   }
 }
 
 export function markPendingHomeReadinessAuthHandoff(): void {
-  const storage = getSessionStorage();
+  const storage = getLocalStorage() ?? getSessionStorage();
   if (!storage) return;
 
   try {
@@ -219,12 +250,17 @@ export function markPendingHomeReadinessAuthHandoff(): void {
 }
 
 export function hasPendingHomeReadinessAuthHandoff(): boolean {
-  const storage = getSessionStorage();
-  if (!storage) return false;
+  for (const storage of [getLocalStorage(), getSessionStorage()]) {
+    if (!storage) continue;
 
-  try {
-    return storage.getItem(PENDING_HOME_READINESS_AUTH_KEY) === "1" && Boolean(getPendingHomeReadinessQuiz());
-  } catch {
-    return false;
+    try {
+      if (storage.getItem(PENDING_HOME_READINESS_AUTH_KEY) === "1" && getPendingHomeReadinessQuiz()) {
+        return true;
+      }
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
   }
+
+  return false;
 }

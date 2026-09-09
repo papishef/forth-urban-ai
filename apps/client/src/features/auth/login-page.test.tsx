@@ -54,6 +54,7 @@ describe("LoginPage", () => {
     mockNavigate.mockReset();
     mockSubmitPendingQuiz.mockReset();
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it("shows validation errors when submitted empty", async () => {
@@ -114,5 +115,19 @@ describe("LoginPage", () => {
 
     expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("offers email confirmation when the account has not been verified", async () => {
+    mockLogin.mockRejectedValue(new Error("Please confirm your email before logging in"));
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText(/email/i), "jane@example.com");
+    await userEvent.type(screen.getByLabelText(/^password$/i), "supersecret");
+    await userEvent.click(screen.getByRole("button", { name: /^log in$/i }));
+
+    expect(await screen.findByRole("link", { name: /resend confirmation email/i })).toHaveAttribute(
+      "href",
+      "/verify-email?email=jane%40example.com",
+    );
   });
 });

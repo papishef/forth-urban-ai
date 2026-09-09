@@ -16,6 +16,11 @@ interface SendEmailInput {
  */
 export async function sendEmail(input: SendEmailInput): Promise<void> {
   if (!resend) {
+    if (env.NODE_ENV === "production") {
+      logger.error({ to: input.to, subject: input.subject }, "RESEND_API_KEY is required in production");
+      throw new Error("Email delivery is not configured");
+    }
+
     logger.info(
       { to: input.to, subject: input.subject },
       "RESEND_API_KEY not set — logging email instead of sending",
@@ -39,6 +44,10 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
 
 export function otpEmailHtml(code: string): string {
   return `<p>Your Forth Urban verification code is:</p><h2 style="letter-spacing:4px">${code}</h2><p>This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`;
+}
+
+export function emailVerificationEmailHtml(verificationUrl: string): string {
+  return `<p>Confirm your Forth Urban email address to activate your account.</p><p><a href="${verificationUrl}">Confirm my email address</a></p><p>This link expires soon. If you didn't create this account, you can ignore this email.</p>`;
 }
 
 export function passwordResetEmailHtml(resetUrl: string): string {

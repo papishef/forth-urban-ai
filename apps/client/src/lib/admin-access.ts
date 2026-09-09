@@ -19,6 +19,7 @@ export const ADMIN_MENU_PATHS: Record<AdminMenuKey, string> = {
   areas: "/admin/areas",
   prompts: "/admin/prompts",
   logs: "/admin/logs",
+  kiosk: "/kiosk",
 };
 
 export function hasAdminSurface(user: UserDTO | null): boolean {

@@ -41,7 +41,7 @@ export async function shutdownAnalytics(): Promise<void> {
  * call at each of the ~30 recordAuditLog() call sites across the codebase.
  */
 const AUDIT_ACTION_TO_EVENT: Record<string, string> = {
-  "auth.register": "account_created",
+  "auth.email_verified": "account_created",
   "auth.login": "login_completed",
   "auth.otp_verified": "login_completed",
   "auth.google_login": "login_completed",

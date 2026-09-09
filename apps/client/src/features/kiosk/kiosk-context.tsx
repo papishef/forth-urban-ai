@@ -1,15 +1,19 @@
-import React, { useCallback, useReducer } from "react";
-import type { KioskSession, KioskFormData } from "./types.js";
+import React, { useCallback, useEffect, useReducer, useState } from "react";
+import type { KioskAuthSession, KioskSession, KioskFormData } from "./types.js";
 import { KioskContext } from "./use-kiosk.js";
+import { clearKioskSession, readKioskSession, saveKioskSession } from "./kiosk-api";
 
 interface KioskContextType {
   session: KioskSession;
+  auth: KioskAuthSession | null;
   updateFormData: (data: Partial<KioskFormData>) => void;
   goToStep: (step: KioskSession["currentStep"]) => void;
   setError: (error: string) => void;
   setSuccess: (message: string, logId: string) => void;
   reset: () => void;
   setType: (type: "staff" | "visitor") => void;
+  login: (session: KioskAuthSession) => void;
+  logout: () => void;
 }
 
 const initialSession: KioskSession = {
@@ -66,6 +70,7 @@ function kioskReducer(state: KioskSession, action: KioskAction): KioskSession {
 
 export function KioskProvider({ children }: { children: React.ReactNode }) {
   const [session, dispatch] = useReducer(kioskReducer, initialSession);
+  const [auth, setAuth] = useState<KioskAuthSession | null>(() => readKioskSession());
 
   const updateFormData = useCallback((data: Partial<KioskFormData>) => {
     dispatch({ type: "UPDATE_FORM", payload: data });
@@ -87,18 +92,39 @@ export function KioskProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "RESET" });
   }, []);
 
+  const login = useCallback((nextAuth: KioskAuthSession) => {
+    saveKioskSession(nextAuth);
+    setAuth(nextAuth);
+  }, []);
+
+  const logout = useCallback(() => {
+    clearKioskSession();
+    setAuth(null);
+    dispatch({ type: "RESET" });
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return undefined;
+    const remainingMs = new Date(auth.expiresAt).getTime() - Date.now();
+    const timer = window.setTimeout(logout, Math.max(0, remainingMs));
+    return () => window.clearTimeout(timer);
+  }, [auth, logout]);
+
   const setType = useCallback((type: "staff" | "visitor") => {
     dispatch({ type: "SET_TYPE", payload: type });
   }, []);
 
   const value: KioskContextType = {
     session,
+    auth,
     updateFormData,
     goToStep,
     setError,
     setSuccess,
     reset,
     setType,
+    login,
+    logout,
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;

@@ -1,4 +1,5 @@
 import type { SettingsDTO } from "@forth-urban/shared-types";
+import { hashSecret } from "../../lib/crypto.util.js";
 import { Settings, type SettingsDocument } from "./settings.model.js";
 
 function toSettingsDTO(doc: SettingsDocument): SettingsDTO {
@@ -17,13 +18,14 @@ function toSettingsDTO(doc: SettingsDocument): SettingsDTO {
       moderate: roi.moderate,
       optimistic: roi.optimistic,
     },
+    kioskPasswordConfigured: Boolean(doc.get("kioskPasswordHash")),
     updatedAt: (doc.get("updatedAt") as Date).toISOString(),
   };
 }
 
 /** Fetches the single global settings document, creating it with defaults on first use. */
 export async function getSettingsDocument(): Promise<SettingsDocument> {
-  const existing = await Settings.findOne({ key: "global" });
+  const existing = await Settings.findOne({ key: "global" }).select("+kioskPasswordHash");
   if (existing) return existing;
   return Settings.create({ key: "global" });
 }
@@ -58,6 +60,13 @@ export async function updateSettings(patch: UpdateSettingsInput): Promise<Settin
       optimistic: patch.roiAssumptionDefaults.optimistic ?? roi.optimistic,
     });
   }
+  await doc.save();
+  return toSettingsDTO(doc);
+}
+
+export async function setKioskPassword(password: string): Promise<SettingsDTO> {
+  const doc = await getSettingsDocument();
+  doc.set("kioskPasswordHash", await hashSecret(password));
   await doc.save();
   return toSettingsDTO(doc);
 }

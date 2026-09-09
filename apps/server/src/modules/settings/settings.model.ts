@@ -31,6 +31,7 @@ const settingsSchema = new Schema({
     moderate: { type: Number, required: true, default: 0.1 },
     optimistic: { type: Number, required: true, default: 0.15 },
   },
+  kioskPasswordHash: { type: String, select: false, default: null },
 });
 
 applyBaseSchema(settingsSchema);

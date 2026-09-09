@@ -57,7 +57,7 @@ function op(
   summary: string,
   tags: string[],
   opts: {
-    auth?: "none" | "user" | "admin";
+    auth?: "none" | "user" | "admin" | "kiosk";
     body?: boolean;
     params?: Array<{ name: string; description?: string }>;
     responses?: Record<number, unknown>;
@@ -70,6 +70,7 @@ function op(
   };
   if (auth === "user") Object.assign(responses, authErrorResponses);
   if (auth === "admin") Object.assign(responses, adminErrorResponses);
+  if (auth === "kiosk") Object.assign(responses, { 401: jsonResponse("Missing/expired kiosk session"), 403: jsonResponse("Kiosk access revoked") });
   if (opts.responses) Object.assign(responses, opts.responses);
 
   const result: Operation = {
@@ -122,6 +123,7 @@ export const openApiDocument = {
     { name: "Contact" },
     { name: "Newsletter" },
     { name: "Blog" },
+    { name: "Attendance Kiosk" },
     { name: "Admin" },
   ],
   components: {
@@ -130,15 +132,17 @@ export const openApiDocument = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "Short-lived access token returned by /auth/login, /auth/register, /auth/otp/verify, /auth/refresh.",
+        description: "Short-lived access token returned by /auth/login, /auth/otp/verify, /auth/email-verification/verify, /auth/refresh.",
       },
     },
   },
   paths: {
     "/health": { get: op("Liveness check", ["Health"], { auth: "none" }) },
 
-    "/auth/register": { post: op("Register with email + password", ["Auth"], { auth: "none", body: true, successStatus: 201 }) },
+    "/auth/register": { post: op("Register with email + password; confirmation is required before login", ["Auth"], { auth: "none", body: true, successStatus: 201 }) },
     "/auth/login": { post: op("Log in with email + password", ["Auth"], { auth: "none", body: true }) },
+    "/auth/email-verification/resend": { post: op("Resend a confirmation email without revealing account existence", ["Auth"], { auth: "none", body: true }) },
+    "/auth/email-verification/verify": { post: op("Confirm an email address and create the first session", ["Auth"], { auth: "none", body: true }) },
     "/auth/otp/request": { post: op("Request an email OTP code", ["Auth"], { auth: "none", body: true }) },
     "/auth/otp/verify": { post: op("Verify an email OTP code and log in", ["Auth"], { auth: "none", body: true }) },
     "/auth/refresh": {
@@ -234,6 +238,22 @@ export const openApiDocument = {
         params: [{ name: "slug" }],
         responses: { 404: jsonResponse("Not found") },
       }),
+    },
+
+    "/attendance/kiosk/login": {
+      post: op("Unlock the attendance kiosk for a selected duration", ["Attendance Kiosk"], { auth: "none", body: true }),
+    },
+    "/attendance/kiosk/staff-search": {
+      get: op("Search staff for kiosk attendance", ["Attendance Kiosk"], { auth: "kiosk" }),
+    },
+    "/attendance/kiosk/open-logs": {
+      get: op("List open attendance logs for kiosk check-out", ["Attendance Kiosk"], { auth: "kiosk" }),
+    },
+    "/attendance/kiosk/check-in": {
+      post: op("Record a kiosk check-in with device metadata", ["Attendance Kiosk"], { auth: "kiosk", body: true, successStatus: 201 }),
+    },
+    "/attendance/kiosk/{logId}/check-out": {
+      patch: op("Record a kiosk check-out", ["Attendance Kiosk"], { auth: "kiosk", body: true, params: [{ name: "logId" }] }),
     },
 
     "/admin/contact-messages": { get: op("List contact form submissions", ["Admin"], { auth: "admin" }) },
@@ -345,6 +365,9 @@ export const openApiDocument = {
     "/admin/settings": {
       get: op("Get ROI defaults / property-match weights", ["Admin"], { auth: "admin" }),
       patch: op("Update ROI defaults / property-match weights", ["Admin"], { auth: "admin", body: true }),
+    },
+    "/admin/settings/kiosk-password": {
+      patch: op("Set or replace the attendance kiosk password (owner only)", ["Admin"], { auth: "admin", body: true }),
     },
     "/admin/areas": {
       get: op("List area preference->name mappings", ["Admin"], { auth: "admin" }),

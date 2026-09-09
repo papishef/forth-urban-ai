@@ -31,6 +31,8 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default("Forth Urban <notification@notifications.forthurban.com>"),
   RESEND_REPLY_TO_EMAIL: z.string().default("info@forthurban.com"),
+  EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(30).max(3600).default(60),
 
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
@@ -89,6 +91,10 @@ const rawEnv = Object.fromEntries(
 );
 
 export const env: Env = envSchema.parse(rawEnv);
+
+if (env.NODE_ENV === "production" && !env.RESEND_API_KEY) {
+  throw new Error("RESEND_API_KEY is required in production so email verification can activate accounts");
+}
 
 // Fail fast in production if secrets were left at their (insecure) dev defaults.
 if (env.NODE_ENV === "production") {

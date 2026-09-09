@@ -1,8 +1,9 @@
 /**
  * Auth module — Phase 1.
  *
- * Owns: register, login, JWT access/refresh issuance, email OTP via Resend,
- * Google OAuth (Passport), logout/session revocation, password reset.
+ * Owns: pending email/password registration with confirmation, login, JWT
+ * access/refresh issuance, email OTP via Resend, Google OAuth (Passport),
+ * logout/session revocation, and password reset.
  */
 export { authRouter } from "./auth.routes.js";
 export { requireAuth, requireReauth, requireRole } from "./auth.middleware.js";

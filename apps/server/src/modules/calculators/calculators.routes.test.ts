@@ -3,6 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app.js";
 import { Property } from "../properties/property.model.js";
 import { CalculatorResult } from "./calculator-result.model.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("calculators routes", () => {
   const validHomeReadinessAnswers = {
@@ -18,16 +19,10 @@ describe("calculators routes", () => {
   };
 
   async function registerAndGetToken(app: ReturnType<typeof createApp>, overrides: Record<string, unknown> = {}) {
-    const res = await request(app)
-      .post("/api/auth/register")
-      .send({
-        firstName: "Ada",
-        lastName: "Lovelace",
-        email: "ada@example.com",
-        password: "supersecret123",
-        ...overrides,
-      });
-    return res.body.data.tokens.accessToken as string;
+    const { token } = await registerVerifiedUser(app, {
+      email: (overrides.email as string | undefined) ?? "ada@example.com",
+    });
+    return token;
   }
 
   async function seedProperty() {

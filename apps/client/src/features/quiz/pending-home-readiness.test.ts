@@ -25,6 +25,7 @@ const answers: HomeReadinessAnswers = {
 describe("pending home-readiness draft", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-22T12:00:00.000Z"));
   });
@@ -43,6 +44,16 @@ describe("pending home-readiness draft", () => {
     clearPendingHomeReadinessQuiz();
     expect(getPendingHomeReadinessQuiz()).toBeNull();
     expect(hasPendingHomeReadinessAuthHandoff()).toBe(false);
+  });
+
+  it("keeps the completed quiz when confirmation opens in a new tab", () => {
+    expect(savePendingHomeReadinessQuiz(answers)).toBe(true);
+    markPendingHomeReadinessAuthHandoff();
+
+    sessionStorage.clear();
+
+    expect(getPendingHomeReadinessQuiz()).toEqual(answers);
+    expect(hasPendingHomeReadinessAuthHandoff()).toBe(true);
   });
 
   it("rejects malformed and expired drafts instead of submitting them", () => {

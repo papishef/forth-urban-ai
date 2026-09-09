@@ -1,14 +1,20 @@
-import type { ChangePasswordInput, RegisterInput, LoginInput } from "@forth-urban/validation";
+import type {
+  ChangePasswordInput,
+  RegisterInput,
+  LoginInput,
+  EmailVerificationInput,
+} from "@forth-urban/validation";
 import type { AuthResponse } from "@forth-urban/shared-types";
 import { ApiError } from "../../middleware/error-handler.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
-import { sendEmail, otpEmailHtml, passwordResetEmailHtml } from "../../lib/email.service.js";
+import { sendEmail, otpEmailHtml, emailVerificationEmailHtml, passwordResetEmailHtml } from "../../lib/email.service.js";
 import { generateNumericCode, generateOpaqueToken, hashSecret, compareSecret } from "../../lib/crypto.util.js";
 import { User, type UserDocument } from "../users/user.model.js";
 import { toUserDTO } from "../users/user.mapper.js";
 import { Session } from "./session.model.js";
 import { Otp } from "./otp.model.js";
 import { PasswordResetToken } from "./password-reset-token.model.js";
+import { EmailVerificationToken } from "./email-verification-token.model.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken, getTokenExpiry } from "./jwt.util.js";
 import { refreshExpiresAt } from "./cookies.js";
 import { env } from "../../config/env.js";
@@ -17,6 +23,7 @@ import { issueReauthToken } from "./reauth.service.js";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
+const EMAIL_CONFIRMATION_REQUIRED_MESSAGE = "Please confirm your email before logging in";
 
 interface RequestMeta {
   ip: string | null;
@@ -29,6 +36,9 @@ interface IssuedTokens {
 }
 
 async function issueSession(user: UserDocument, meta: RequestMeta): Promise<IssuedTokens> {
+  if (user.status === "suspended") throw new ApiError(403, "This account has been suspended");
+  if (!user.emailVerified) throw new ApiError(403, EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+
   const session = await Session.create({
     userId: user._id,
     refreshTokenHash: "pending",
@@ -48,6 +58,36 @@ async function issueSession(user: UserDocument, meta: RequestMeta): Promise<Issu
   await session.save();
 
   return { accessToken, refreshToken };
+}
+
+async function issueEmailVerification(user: UserDocument, force: boolean): Promise<void> {
+  const latest = await EmailVerificationToken.findOne({
+    userId: user._id,
+    consumedAt: null,
+  }).sort({ createdAt: -1 });
+  const latestCreatedAt = latest?.get("createdAt") as Date | undefined;
+  const cooldownMs = env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS * 1000;
+
+  if (!force && latestCreatedAt && Date.now() - latestCreatedAt.getTime() < cooldownMs) return;
+
+  await EmailVerificationToken.updateMany(
+    { userId: user._id, consumedAt: null },
+    { consumedAt: new Date() },
+  );
+
+  const token = generateOpaqueToken();
+  await EmailVerificationToken.create({
+    userId: user._id,
+    tokenHash: await hashSecret(token),
+    expiresAt: new Date(Date.now() + env.EMAIL_VERIFICATION_TTL_HOURS * 60 * 60 * 1000),
+  });
+
+  const verificationUrl = `${env.CLIENT_URL}/verify-email?email=${encodeURIComponent(user.email)}&token=${token}`;
+  await sendEmail({
+    to: user.email,
+    subject: "Confirm your Forth Urban email address",
+    html: emailVerificationEmailHtml(verificationUrl),
+  });
 }
 
 function toAuthResponse(user: UserDocument, tokens: IssuedTokens): AuthResponse {
@@ -74,9 +114,10 @@ export async function register(input: RegisterInput, meta: RequestMeta) {
     email: input.email,
     passwordHash,
     authProvider: "local",
+    emailVerified: false,
   });
 
-  const tokens = await issueSession(user, meta);
+  await issueEmailVerification(user, true);
 
   await recordAuditLog({
     actorId: user._id.toString(),
@@ -87,7 +128,12 @@ export async function register(input: RegisterInput, meta: RequestMeta) {
     ipAddress: meta.ip,
   });
 
-  return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
+  return {
+    pending: {
+      email: user.email,
+      requiresEmailVerification: true as const,
+    },
+  };
 }
 
 export async function login(input: LoginInput, meta: RequestMeta) {
@@ -104,6 +150,9 @@ export async function login(input: LoginInput, meta: RequestMeta) {
   if (user.status === "suspended") {
     throw new ApiError(403, "This account has been suspended");
   }
+  if (!user.emailVerified) {
+    throw new ApiError(403, EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+  }
 
   const tokens = await issueSession(user, meta);
 
@@ -111,6 +160,67 @@ export async function login(input: LoginInput, meta: RequestMeta) {
     actorId: user._id.toString(),
     actorType: "user",
     action: "auth.login",
+    targetType: "User",
+    targetId: user._id.toString(),
+    ipAddress: meta.ip,
+  });
+
+  return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
+}
+
+export async function resendEmailVerification(email: string): Promise<void> {
+  const user = await User.findOne({ email });
+  if (!user || user.emailVerified || user.authProvider !== "local") return;
+
+  await issueEmailVerification(user, false);
+}
+
+export async function verifyEmail(input: EmailVerificationInput, meta: RequestMeta) {
+  const user = await User.findOne({ email: input.email });
+  if (!user || user.emailVerified) {
+    throw new ApiError(400, "Invalid or expired verification link");
+  }
+  if (user.status === "suspended") {
+    throw new ApiError(403, "This account has been suspended");
+  }
+
+  const candidates = await EmailVerificationToken.find({
+    userId: user._id,
+    consumedAt: null,
+    expiresAt: { $gt: new Date() },
+  }).sort({ createdAt: -1 });
+
+  let matched: (typeof candidates)[number] | null = null;
+  for (const candidate of candidates) {
+    if (await compareSecret(input.token, candidate.tokenHash)) {
+      matched = candidate;
+      break;
+    }
+  }
+  if (!matched) throw new ApiError(400, "Invalid or expired verification link");
+
+  const now = new Date();
+  const claimed = await EmailVerificationToken.findOneAndUpdate(
+    { _id: matched._id, consumedAt: null },
+    { $set: { consumedAt: now } },
+    { new: true },
+  );
+  if (!claimed) throw new ApiError(400, "Invalid or expired verification link");
+
+  await EmailVerificationToken.updateMany(
+    { userId: user._id, consumedAt: null },
+    { consumedAt: now },
+  );
+
+  user.set("emailVerified", true);
+  await user.save();
+  await Session.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: now });
+
+  const tokens = await issueSession(user, meta);
+  await recordAuditLog({
+    actorId: user._id.toString(),
+    actorType: "user",
+    action: "auth.email_verified",
     targetType: "User",
     targetId: user._id.toString(),
     ipAddress: meta.ip,
@@ -246,6 +356,11 @@ export async function refresh(refreshToken: string | undefined, meta: RequestMet
     session.set("revokedAt", new Date());
     await session.save();
     throw new ApiError(403, "This account has been suspended");
+  }
+  if (!user.emailVerified) {
+    session.set("revokedAt", new Date());
+    await session.save();
+    throw new ApiError(403, EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
   }
 
   // Rotate: revoke this session's token and issue a brand new session.

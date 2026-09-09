@@ -37,7 +37,7 @@ interface Step {
 
 const STEPS: Step[] = [
   { id: "buyerGoal", question: "Why do you want a property?", description: "Help us understand your core objective.", fields: ["buyerGoal"] },
-  { id: "budgetRange", question: "What initial budget can you start with?", description: "Tell us your initial budget (NGN).", fields: ["budgetRange"] },
+  { id: "budgetRange", question: "What is your budget range?", description: "Tell us your initial budget (NGN).", fields: ["budgetRange"] },
   { id: "paymentStyle", question: "One-time or installment?", description: "How you prefer to structure payments.", fields: ["paymentStyle"] },
   { id: "monthlyIncome", question: "What payment pressure can you handle?", description: "Your safe monthly contribution limit.", fields: ["monthlyIncome"] },
   { id: "timeline", question: "When do you want to buy?", description: "Helps us match you with ready properties.", fields: ["timeline"] },

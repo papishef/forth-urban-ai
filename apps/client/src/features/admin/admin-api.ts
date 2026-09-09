@@ -29,6 +29,7 @@ import type {
   AdminPropertyInput,
   AdminPropertyUpdateInput,
   AdminPublishBlogPostInput,
+  AdminSetKioskPasswordInput,
   AdminUpdateContactMessageInput,
   AdminUpdateCrmEventInput,
   AdminUpdateInspectionInput,
@@ -383,6 +384,14 @@ export function useAdminUpdateSettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AdminUpdateSettingsInput) => patch<SettingsDTO>("/admin/settings", input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "settings"] }),
+  });
+}
+
+export function useAdminSetKioskPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AdminSetKioskPasswordInput) => patch<SettingsDTO>("/admin/settings/kiosk-password", input),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "settings"] }),
   });
 }

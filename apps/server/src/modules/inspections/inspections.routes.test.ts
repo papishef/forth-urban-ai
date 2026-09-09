@@ -6,6 +6,7 @@ import { InspectionBooking } from "./inspection-booking.model.js";
 import { EmailEvent } from "../notifications/email-event.model.js";
 import { Notification } from "../notifications/notification.model.js";
 import { CrmEvent } from "../crm/crm-event.model.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("inspections routes", () => {
   const validHomeReadinessAnswers = {
@@ -21,13 +22,8 @@ describe("inspections routes", () => {
   };
 
   async function registerAndGetToken(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post("/api/auth/register").send({
-      firstName: "Ada",
-      lastName: "Lovelace",
-      email: "ada@example.com",
-      password: "supersecret123",
-    });
-    return res.body.data.tokens.accessToken as string;
+    const { token } = await registerVerifiedUser(app, { email: "ada@example.com" });
+    return token;
   }
 
   async function seedProperty() {

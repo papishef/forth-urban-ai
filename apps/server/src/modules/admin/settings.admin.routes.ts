@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { adminUpdateSettingsSchema } from "@forth-urban/validation";
+import { adminSetKioskPasswordSchema, adminUpdateSettingsSchema } from "@forth-urban/validation";
 import type { ApiEnvelope } from "../../middleware/error-handler.js";
+import { ApiError } from "../../middleware/error-handler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
-import { requireAdminPermission } from "../auth/permissions.js";
-import { getSettings, updateSettings } from "../settings/index.js";
+import { requireAdminPermission, requireOwnerAdmin } from "../auth/permissions.js";
+import { getSettings, setKioskPassword, updateSettings } from "../settings/index.js";
 
 /**
  * `GET/PATCH /api/admin/settings` — Phase 7 ROI assumption defaults +
@@ -17,6 +18,26 @@ settingsAdminRouter.get("/", async (_req, res, next) => {
   try {
     const data = await getSettings();
     const body: ApiEnvelope = { success: true, message: "OK", data, errors: null };
+    res.json(body);
+  } catch (err) {
+    next(err);
+  }
+});
+
+settingsAdminRouter.patch("/kiosk-password", requireOwnerAdmin(), validateBody(adminSetKioskPasswordSchema), async (req, res, next) => {
+  try {
+    if (req.authUser?.role !== "admin") throw new ApiError(403, "Owner admin access required");
+    const data = await setKioskPassword(req.body.kioskPassword);
+
+    await recordAuditLog({
+      actorId: req.auth!.sub,
+      actorType: "admin",
+      action: "admin.settings.kiosk_password_updated",
+      targetType: "Settings",
+      metadata: { configured: true },
+    });
+
+    const body: ApiEnvelope = { success: true, message: "Kiosk password updated", data, errors: null };
     res.json(body);
   } catch (err) {
     next(err);

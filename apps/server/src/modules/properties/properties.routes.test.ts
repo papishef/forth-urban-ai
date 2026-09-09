@@ -3,6 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app.js";
 import { Property } from "./property.model.js";
 import { Recommendation } from "./recommendation.model.js";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 describe("properties & recommendations routes", () => {
   const validHomeReadinessAnswers = {
@@ -18,13 +19,8 @@ describe("properties & recommendations routes", () => {
   };
 
   async function registerAndGetToken(app: ReturnType<typeof createApp>) {
-    const res = await request(app).post("/api/auth/register").send({
-      firstName: "Ada",
-      lastName: "Lovelace",
-      email: "ada@example.com",
-      password: "supersecret123",
-    });
-    return res.body.data.tokens.accessToken as string;
+    const { token } = await registerVerifiedUser(app, { email: "ada@example.com" });
+    return token;
   }
 
   async function seedProperties() {

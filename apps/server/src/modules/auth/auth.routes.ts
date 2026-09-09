@@ -5,6 +5,8 @@ import {
   loginSchema,
   otpRequestSchema,
   otpVerifySchema,
+  emailVerificationSchema,
+  resendEmailVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyPasswordSchema,
@@ -29,8 +31,49 @@ const authRateLimit = rateLimit({
   limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
 });
 authRouter.use(authRateLimit);
+
+const registrationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
+});
+
+const emailVerificationResendRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
+});
+
+const emailVerificationAttemptRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
+});
+
+const otpRequestRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
+});
+
+const otpVerifyRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === "test",
+});
 
 function requestMeta(req: { ip?: string; headers: Record<string, unknown>; get?: (name: string) => string | undefined }) {
   return {
@@ -46,18 +89,63 @@ function withCsrfToken<T extends { tokens: { csrfToken: string } }>(authResponse
   return { ...authResponse, tokens: { ...authResponse.tokens, csrfToken } };
 }
 
-authRouter.post("/register", validateBody(registerSchema), async (req, res, next) => {
+authRouter.post("/register", registrationRateLimit, validateBody(registerSchema), async (req, res, next) => {
   try {
-    const { authResponse, refreshToken } = await authService.register(req.body, requestMeta(req));
-    setRefreshCookie(res, refreshToken);
-    const csrfToken = issueCsrfCookie(res);
-
-    const body: ApiEnvelope = { success: true, message: "Account created", data: withCsrfToken(authResponse, csrfToken), errors: null };
+    const { pending } = await authService.register(req.body, requestMeta(req));
+    const body: ApiEnvelope = {
+      success: true,
+      message: "Check your email to activate your account",
+      data: pending,
+      errors: null,
+    };
     res.status(201).json(body);
   } catch (err) {
     next(err);
   }
 });
+
+authRouter.post(
+  "/email-verification/resend",
+  emailVerificationResendRateLimit,
+  validateBody(resendEmailVerificationSchema),
+  async (req, res, next) => {
+    try {
+      await authService.resendEmailVerification(req.body.email);
+      const body: ApiEnvelope = {
+        success: true,
+        message: "If an unverified account exists for this email, a confirmation link has been sent",
+        data: null,
+        errors: null,
+      };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  "/email-verification/verify",
+  emailVerificationAttemptRateLimit,
+  validateBody(emailVerificationSchema),
+  async (req, res, next) => {
+    try {
+      const { authResponse, refreshToken } = await authService.verifyEmail(req.body, requestMeta(req));
+      setRefreshCookie(res, refreshToken);
+      const csrfToken = issueCsrfCookie(res);
+
+      const body: ApiEnvelope = {
+        success: true,
+        message: "Email verified",
+        data: withCsrfToken(authResponse, csrfToken),
+        errors: null,
+      };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
   try {
@@ -72,7 +160,7 @@ authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
   }
 });
 
-authRouter.post("/otp/request", validateBody(otpRequestSchema), async (req, res, next) => {
+authRouter.post("/otp/request", otpRequestRateLimit, validateBody(otpRequestSchema), async (req, res, next) => {
   try {
     await authService.requestOtp(req.body.email);
     const body: ApiEnvelope = { success: true, message: "Verification code sent", data: null, errors: null };
@@ -82,7 +170,7 @@ authRouter.post("/otp/request", validateBody(otpRequestSchema), async (req, res,
   }
 });
 
-authRouter.post("/otp/verify", validateBody(otpVerifySchema), async (req, res, next) => {
+authRouter.post("/otp/verify", otpVerifyRateLimit, validateBody(otpVerifySchema), async (req, res, next) => {
   try {
     const { authResponse, refreshToken } = await authService.verifyOtp(req.body.email, req.body.code, requestMeta(req));
     setRefreshCookie(res, refreshToken);

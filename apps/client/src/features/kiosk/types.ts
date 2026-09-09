@@ -1,4 +1,7 @@
 import type { AttendanceType } from "@forth-urban/validation";
+import type { KioskSessionDTO } from "@forth-urban/shared-types";
+
+export type KioskAuthSession = KioskSessionDTO;
 
 export interface KioskFormData {
   type: AttendanceType;

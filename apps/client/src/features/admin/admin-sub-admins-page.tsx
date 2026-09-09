@@ -31,6 +31,7 @@ const MENU_LABELS: Record<AdminMenuKey, string> = {
   areas: "Areas",
   prompts: "Prompts",
   logs: "Audit logs",
+  kiosk: "Kiosk access",
 };
 
 type PendingAction =

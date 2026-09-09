@@ -4,7 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useKiosk } from "./use-kiosk.js";
 import type { CheckInInput } from "@forth-urban/validation";
 import { playKioskErrorSound, playKioskSuccessSound } from "./kiosk-feedback";
-import { API_BASE_URL } from "../../lib/api-client.js";
+import { kioskFetch } from "./kiosk-api.js";
 
 async function readResponse(response: Response): Promise<{ message?: string; data?: { _id: string } }> {
   const text = await response.text();
@@ -17,18 +17,20 @@ async function readResponse(response: Response): Promise<{ message?: string; dat
 }
 
 export function CheckInScreen() {
-  const { session, updateFormData, setSuccess, setError } = useKiosk();
+  const { session, updateFormData, setSuccess, setError, logout } = useKiosk();
   const [currentStep, setCurrentStep] = useState<"type" | "input" | "review">(
     session.selectedType ? "input" : "type"
   );
 
   const checkInMutation = useMutation({
     mutationFn: async (data: CheckInInput) => {
-      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/check-in`, {
+      const response = await kioskFetch("/attendance/kiosk/check-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+
+      if (response.status === 401 || response.status === 403) logout();
 
       if (!response.ok) {
         const error = await readResponse(response);
@@ -232,6 +234,7 @@ export function CheckInScreen() {
 export const CheckInComponent = CheckInScreen;
 
 function StaffLookupForm({ onSelect }: { onSelect: (staffId: string, name: string) => void }) {
+  const { logout } = useKiosk();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ _id: string; firstName: string; lastName: string; department?: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -245,7 +248,8 @@ function StaffLookupForm({ onSelect }: { onSelect: (staffId: string, name: strin
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/attendance/kiosk/staff-search?q=${encodeURIComponent(query)}`);
+      const response = await kioskFetch(`/attendance/kiosk/staff-search?q=${encodeURIComponent(query)}`);
+      if (response.status === 401 || response.status === 403) logout();
       const data = await response.json();
       setResults(data.data || []);
     } catch (error) {

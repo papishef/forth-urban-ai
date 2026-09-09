@@ -3,7 +3,8 @@ import type { UserRole } from "@forth-urban/shared-types";
 import { ApiError } from "../../middleware/error-handler.js";
 import { User } from "../users/user.model.js";
 import { consumeReauthToken } from "./reauth.service.js";
-import { verifyAccessToken } from "./jwt.util.js";
+import { verifyAccessToken, verifyKioskToken } from "./jwt.util.js";
+import { canAccessAdminMenu } from "./permissions.js";
 
 /**
  * Verifies the `Authorization: Bearer <accessToken>` header and attaches the
@@ -35,12 +36,59 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       next(new ApiError(403, "This account has been suspended"));
       return;
     }
+    if (!user.emailVerified) {
+      next(new ApiError(403, "Please confirm your email before accessing your account"));
+      return;
+    }
 
     req.auth = {
       ...tokenPayload,
       role: user.role as UserRole,
       email: user.email,
     };
+    req.authUser = user;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Authenticates a duration-bound kiosk session and rechecks kiosk permission on every request. */
+export async function requireKioskAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    next(new ApiError(401, "Kiosk authentication required"));
+    return;
+  }
+
+  let tokenPayload;
+  try {
+    tokenPayload = verifyKioskToken(header.slice("Bearer ".length));
+  } catch {
+    next(new ApiError(401, "Kiosk session expired or invalid"));
+    return;
+  }
+
+  try {
+    const user = await User.findById(tokenPayload.sub);
+    if (!user) {
+      next(new ApiError(401, "Kiosk account no longer exists"));
+      return;
+    }
+    if (user.status === "suspended") {
+      next(new ApiError(403, "This account has been suspended"));
+      return;
+    }
+    if (!user.emailVerified) {
+      next(new ApiError(403, "Please confirm your email before accessing the kiosk"));
+      return;
+    }
+    if (user.role !== "admin" && !canAccessAdminMenu(user, "kiosk")) {
+      next(new ApiError(403, "Kiosk access has been revoked"));
+      return;
+    }
+
+    req.auth = { sub: user._id.toString(), role: user.role as UserRole, email: user.email };
     req.authUser = user;
     next();
   } catch (err) {

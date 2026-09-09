@@ -23,9 +23,11 @@ Every environment (your laptop, a Vercel/Render **Preview** deploy for a PR, and
 | `JWT_REFRESH_TTL` | optional (default `30d`) | | n/a |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional (Google login 503s if unset) | | Google Cloud Console → APIs & Services → Credentials (§2) |
 | `GOOGLE_CALLBACK_URL` | required if Google OAuth used | e.g. `https://forth-urban-api.onrender.com/api/auth/google/callback` | your Render URL |
-| `RESEND_API_KEY` | optional (emails no-op/log if unset) | | Resend dashboard → API Keys (§6) |
+| `RESEND_API_KEY` | required in production; optional locally (emails log) | | Resend dashboard → API Keys (§6) |
 | `RESEND_FROM_EMAIL` | optional | `Forth Urban <notification@notifications.forthurban.com>` after verifying `notifications.forthurban.com` | Resend → Domains (§6); local `apps/server/.env` or the Render service environment |
 | `RESEND_REPLY_TO_EMAIL` | optional (default `info@forthurban.com`) | `info@forthurban.com` | the inbox that should open when a recipient replies |
+| `EMAIL_VERIFICATION_TTL_HOURS` | optional (default `24`, max `168`) | | n/a — controls confirmation-link lifetime |
+| `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` | optional (default `60`, range `30`–`3600`) | | n/a — limits repeated confirmation emails per account |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | optional (admin media upload disabled if unset) | | Cloudinary dashboard home page (§7) |
 | `FLUTTERWAVE_SECRET_KEY` | optional (storage billing disabled if unset) | Secret API key for server-side checkout, verification, and webhook reconciliation | Flutterwave Dashboard → Settings → API Keys |
 | `FLUTTERWAVE_PUBLIC_KEY` | optional for the current hosted checkout flow | Public key reserved for a future inline checkout; never use the secret key in the client | Flutterwave Dashboard → Settings → API Keys |

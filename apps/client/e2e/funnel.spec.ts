@@ -67,6 +67,11 @@ test("full funnel: register through inspection booking", async ({ page }) => {
   await page.getByLabel(/^password$/i).fill("supersecret1");
   await page.getByRole("button", { name: /create account/i }).click();
 
+  // Opening the confirmation link activates the account and starts the session.
+  await expect(page).toHaveURL(/\/verify-email\?email=jane\.e2e%40example\.com&next=/);
+  await page.goto("/verify-email?email=jane.e2e%40example.com&token=mock-email-token&next=%2Fquiz%2Fhome-readiness%2Fresult");
+  await page.getByRole("button", { name: /confirm email/i }).click();
+
   // Quiz result -> matched properties
   await expect(page).toHaveURL(/\/quiz\/home-readiness\/result$/);
   await expect(page.getByText("72", { exact: true })).toBeVisible();

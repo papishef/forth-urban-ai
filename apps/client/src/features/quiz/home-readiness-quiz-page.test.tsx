@@ -73,6 +73,7 @@ describe("HomeReadinessQuizPage", () => {
     mockAuth.isAuthenticated = true;
     mockAuth.isLoading = false;
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it("starts the quiz on mount", () => {

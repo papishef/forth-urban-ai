@@ -1,8 +1,8 @@
-import request from "supertest";
 import { createApp } from "../../app.js";
 import { User } from "../users/user.model.js";
 import { signAccessToken } from "../auth/jwt.util.js";
 import type { AdminMenuPermissionsDTO } from "@forth-urban/shared-types";
+import { registerVerifiedUser } from "../../test/auth-helpers.js";
 
 /** Shared helpers reused by every admin route test file. */
 
@@ -10,18 +10,10 @@ export async function registerUser(
   app: ReturnType<typeof createApp>,
   overrides: Partial<{ firstName: string; lastName: string; email: string; password: string }> = {},
 ) {
-  const res = await request(app)
-    .post("/api/auth/register")
-    .send({
-      firstName: overrides.firstName ?? "Ada",
-      lastName: overrides.lastName ?? "Lovelace",
-      email:
-        overrides.email ?? `user-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
-      password: overrides.password ?? "supersecret123",
-    });
+  const registered = await registerVerifiedUser(app, overrides);
   return {
-    token: res.body.data.tokens.accessToken as string,
-    userId: res.body.data.user.id as string,
+    token: registered.token,
+    userId: registered.userId,
   };
 }
 /** Registers a regular user, then promotes them to `role: "admin"` and mints a matching access token. */

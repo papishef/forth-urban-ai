@@ -4,6 +4,7 @@ import { env } from "../../config/env.js";
 
 const ACCESS_TOKEN_TYPE = "access";
 const REFRESH_TOKEN_TYPE = "refresh";
+const KIOSK_TOKEN_TYPE = "kiosk";
 
 export interface RefreshTokenPayload {
   sub: string;
@@ -21,6 +22,33 @@ export function verifyAccessToken(token: string): JwtAccessPayload {
   const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload;
   if (decoded.type !== ACCESS_TOKEN_TYPE) throw new Error("Invalid token type");
   return { sub: decoded.sub as string, role: decoded.role as UserRole, email: decoded.email as string };
+}
+
+export interface KioskTokenPayload {
+  sub: string;
+  role: UserRole;
+  email: string;
+  type: typeof KIOSK_TOKEN_TYPE;
+}
+
+export function signKioskToken(
+  payload: { sub: string; role: UserRole; email: string },
+  durationHours: number,
+): string {
+  return jwt.sign({ ...payload, type: KIOSK_TOKEN_TYPE }, env.JWT_ACCESS_SECRET, {
+    expiresIn: `${durationHours}h` as jwt.SignOptions["expiresIn"],
+  });
+}
+
+export function verifyKioskToken(token: string): KioskTokenPayload {
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload;
+  if (decoded.type !== KIOSK_TOKEN_TYPE) throw new Error("Invalid token type");
+  return {
+    sub: decoded.sub as string,
+    role: decoded.role as UserRole,
+    email: decoded.email as string,
+    type: KIOSK_TOKEN_TYPE,
+  };
 }
 
 export function signRefreshToken(payload: { sub: string; sessionId: string }): string {

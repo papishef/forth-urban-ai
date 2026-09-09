@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@forth-urban/validation";
@@ -16,14 +16,8 @@ import { AuthLayout } from "./auth-layout";
 export function RegisterPage() {
   const { register: registerUser } = useAuth();
   const location = useLocation();
-  const {
-    complete,
-    retryPendingQuiz,
-    authenticatedUser,
-    isSavingQuiz,
-    quizSaveError,
-    isReadinessHandoff,
-  } = useAuthFlowCompletion();
+  const navigate = useNavigate();
+  const { isReadinessHandoff } = useAuthFlowCompletion();
   const [serverError, setServerError] = React.useState<string | null>(null);
   const {
     register,
@@ -34,14 +28,13 @@ export function RegisterPage() {
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
 
-    if (authenticatedUser) {
-      await retryPendingQuiz();
-      return;
-    }
-
     try {
-      const user = await registerUser(values);
-      await complete(user);
+      if (isReadinessHandoff) markPendingHomeReadinessAuthHandoff();
+      const pending = await registerUser(values);
+      const params = new URLSearchParams({ email: pending.email });
+      const next = new URLSearchParams(location.search).get("next");
+      if (next) params.set("next", next);
+      navigate(`/verify-email?${params.toString()}`, { replace: true });
     } catch (err) {
       setServerError(getErrorMessage(err, "Could not create your account"));
     }
@@ -85,16 +78,9 @@ export function RegisterPage() {
           {errors.password ? <p className="text-sm text-red-600">{errors.password.message}</p> : null}
         </div>
         {serverError ? <p className="text-sm text-red-600" role="alert">{serverError}</p> : null}
-        {quizSaveError ? <p className="text-sm text-red-600" role="alert">{quizSaveError}</p> : null}
-        {authenticatedUser && quizSaveError ? (
-          <Button type="button" disabled={isSavingQuiz} onClick={() => void retryPendingQuiz()} className="w-full">
-            {isSavingQuiz ? "Saving your result…" : "Retry saving my result"}
-          </Button>
-        ) : (
-          <Button type="submit" disabled={isSubmitting || isSavingQuiz} className="w-full">
-            {isSavingQuiz ? "Saving your result…" : isSubmitting ? "Creating account…" : "Create account"}
-          </Button>
-        )}
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? "Creating account…" : "Create account"}
+        </Button>
         <a
           href={`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api"}/auth/google`}
           className="w-full"

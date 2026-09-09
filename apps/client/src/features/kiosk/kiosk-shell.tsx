@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { Button, Logo } from "@forth-urban/ui";
 import { KioskProvider } from "./kiosk-context.js";
 import { useKiosk } from "./use-kiosk.js";
@@ -7,6 +7,7 @@ import { CheckInScreen } from "./check-in.js";
 import { CheckOutScreen } from "./check-out.js";
 import { SuccessScreen } from "./success-screen.js";
 import { WelcomeScreen } from "./welcome-screen.js";
+import { KioskLoginScreen } from "./kiosk-login.js";
 
 /**
  * Main kiosk layout — tablet-optimized, full-screen, no navigation
@@ -23,7 +24,7 @@ import { WelcomeScreen } from "./welcome-screen.js";
  * - Buttons: Inter (18px)
  */
 function KioskContent() {
-  const { session, reset } = useKiosk();
+  const { auth, session, reset, logout } = useKiosk();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -49,19 +50,31 @@ function KioskContent() {
       {/* Header with logo and time */}
       <header className="kiosk-header">
         <Logo className="kiosk-logo h-9 sm:h-10" />
-        <div className="kiosk-clock" aria-label={`Current time ${now.toLocaleTimeString()}`}>
-          <div className="kiosk-clock-face" aria-hidden="true">
-            <span className="kiosk-clock-hand kiosk-clock-hour" style={{ transform: `translateX(-50%) rotate(${(now.getHours() % 12) * 30 + now.getMinutes() / 2}deg)` }} />
-            <span className="kiosk-clock-hand kiosk-clock-minute" style={{ transform: `translateX(-50%) rotate(${now.getMinutes() * 6}deg)` }} />
-            <span className="kiosk-clock-hand kiosk-clock-second" style={{ transform: `translateX(-50%) rotate(${now.getSeconds() * 6}deg)` }} />
-            <span className="kiosk-clock-pin" />
+        <div className="flex items-center gap-3">
+          {auth && (
+            <button
+              type="button"
+              onClick={logout}
+              className="flex items-center gap-2 rounded-lg border border-[#5C4033]/20 bg-white/70 px-3 py-2 text-sm font-semibold text-[#5C4033] hover:bg-white"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Lock kiosk
+            </button>
+          )}
+          <div className="kiosk-clock" aria-label={`Current time ${now.toLocaleTimeString()}`}>
+            <div className="kiosk-clock-face" aria-hidden="true">
+              <span className="kiosk-clock-hand kiosk-clock-hour" style={{ transform: `translateX(-50%) rotate(${(now.getHours() % 12) * 30 + now.getMinutes() / 2}deg)` }} />
+              <span className="kiosk-clock-hand kiosk-clock-minute" style={{ transform: `translateX(-50%) rotate(${now.getMinutes() * 6}deg)` }} />
+              <span className="kiosk-clock-hand kiosk-clock-second" style={{ transform: `translateX(-50%) rotate(${now.getSeconds() * 6}deg)` }} />
+              <span className="kiosk-clock-pin" />
+            </div>
+            <span className="kiosk-clock-time">
+              {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+            <span className="kiosk-clock-date">
+              {now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+            </span>
           </div>
-          <span className="kiosk-clock-time">
-            {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-          </span>
-          <span className="kiosk-clock-date">
-            {now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-          </span>
         </div>
       </header>
 
@@ -71,7 +84,7 @@ function KioskContent() {
           <span className="kiosk-status-dot" /> SYSTEM ONLINE <span>///</span> BIOMETRIC GATE
         </div>
         <div className="kiosk-glass-panel">
-          {session.currentStep !== "welcome" && session.currentStep !== "success" && session.currentStep !== "error" && (
+          {auth && session.currentStep !== "welcome" && session.currentStep !== "success" && session.currentStep !== "error" && (
             <Button
               variant="ghost"
               size="sm"
@@ -81,15 +94,16 @@ function KioskContent() {
               ← Back
             </Button>
           )}
-          {session.currentStep === "welcome" && <WelcomeScreen />}
-          {session.currentStep === "type-select" && <CheckInScreen />}
-          {session.currentStep === "staff-lookup" && <CheckInScreen />}
-          {session.currentStep === "check-out" && <CheckOutScreen />}
-          {session.currentStep === "visitor-info" && <CheckInScreen />}
-          {session.currentStep === "inspection-link" && <CheckInScreen />}
-          {session.currentStep === "assign-rep" && <CheckInScreen />}
-          {session.currentStep === "success" && <SuccessScreen />}
-          {session.currentStep === "error" && <ErrorScreen />}
+          {!auth && <KioskLoginScreen />}
+          {auth && session.currentStep === "welcome" && <WelcomeScreen />}
+          {auth && session.currentStep === "type-select" && <CheckInScreen />}
+          {auth && session.currentStep === "staff-lookup" && <CheckInScreen />}
+          {auth && session.currentStep === "check-out" && <CheckOutScreen />}
+          {auth && session.currentStep === "visitor-info" && <CheckInScreen />}
+          {auth && session.currentStep === "inspection-link" && <CheckInScreen />}
+          {auth && session.currentStep === "assign-rep" && <CheckInScreen />}
+          {auth && session.currentStep === "success" && <SuccessScreen />}
+          {auth && session.currentStep === "error" && <ErrorScreen />}
         </div>
       </main>
 

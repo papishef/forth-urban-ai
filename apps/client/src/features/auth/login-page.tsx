@@ -25,6 +25,7 @@ export function LoginPage() {
     isReadinessHandoff,
   } = useAuthFlowCompletion();
   const [serverError, setServerError] = React.useState<string | null>(null);
+  const [verificationPath, setVerificationPath] = React.useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -33,6 +34,7 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
+    setVerificationPath(null);
 
     if (authenticatedUser) {
       await retryPendingQuiz();
@@ -43,7 +45,14 @@ export function LoginPage() {
       const user = await login(values);
       await complete(user);
     } catch (err) {
-      setServerError(getErrorMessage(err, "Invalid email or password"));
+      const message = getErrorMessage(err, "Invalid email or password");
+      setServerError(message);
+      if (message.toLowerCase().includes("confirm your email")) {
+        const params = new URLSearchParams({ email: values.email });
+        const next = new URLSearchParams(location.search).get("next");
+        if (next) params.set("next", next);
+        setVerificationPath(`/verify-email?${params.toString()}`);
+      }
     }
   });
 
@@ -78,6 +87,11 @@ export function LoginPage() {
           </Link>
         </div>
         {serverError ? <p className="text-sm text-red-600" role="alert">{serverError}</p> : null}
+        {verificationPath ? (
+          <Link to={verificationPath} className="text-center text-sm font-medium text-[#5C4033] underline">
+            Resend confirmation email
+          </Link>
+        ) : null}
         {quizSaveError ? <p className="text-sm text-red-600" role="alert">{quizSaveError}</p> : null}
         {authenticatedUser && quizSaveError ? (
           <Button type="button" disabled={isSavingQuiz} onClick={() => void retryPendingQuiz()} className="w-full">

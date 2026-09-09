@@ -79,10 +79,11 @@ Both Render and Vercel already auto-deploy from git natively (§3, §4) — you 
 ## 6. Resend (transactional email)
 
 1. Create a free Resend account → **API Keys** → create one → this is `RESEND_API_KEY`.
-2. Until you have a verified sending domain, use the sandbox sender `RESEND_FROM_EMAIL=Forth Urban <onboarding@resend.dev>` — it can only send to your own verified Resend account email.
-3. For the verified `notifications.forthurban.com` domain, set `RESEND_FROM_EMAIL=Forth Urban <notification@notifications.forthurban.com>`. Locally, change it in `apps/server/.env`; on Render, open the service's **Environment** settings, edit `RESEND_FROM_EMAIL`, save, and redeploy. The local-part (`notification`) is the sender name before `@`; it does not need to be an existing inbox for Resend to accept the sender.
-4. Set `RESEND_REPLY_TO_EMAIL=info@forthurban.com` if recipients should reply to that inbox. The server sends this as Resend's `replyTo` field; it does not need to match the verified sending domain.
-5. **Post client approval / custom domain** ([IMPLEMENTATION_PLAN.md Phase 10](IMPLEMENTATION_PLAN.md#phase-10--cicd--deployment)): Resend dashboard → **Domains → Add Domain** → add the DNS records (SPF/DKIM `TXT`/`CNAME`) it shows you at your domain registrar → once verified, change `RESEND_FROM_EMAIL` to an address using that domain, such as `Forth Urban <hello@forthurban.ai>`.
+2. `RESEND_API_KEY` is mandatory in production: the server refuses to start without it because password registration now requires a deliverable confirmation email. It remains optional locally, where emails are logged for development/tests.
+3. Until you have a verified sending domain, use the sandbox sender `RESEND_FROM_EMAIL=Forth Urban <onboarding@resend.dev>` — it can only send to your own verified Resend account email.
+4. For the verified `notifications.forthurban.com` domain, set `RESEND_FROM_EMAIL=Forth Urban <notification@notifications.forthurban.com>`. Locally, change it in `apps/server/.env`; on Render, open the service's **Environment** settings, edit `RESEND_FROM_EMAIL`, save, and redeploy. The local-part (`notification`) is the sender name before `@`; it does not need to be an existing inbox for Resend to accept the sender.
+5. Set `RESEND_REPLY_TO_EMAIL=info@forthurban.com` if recipients should reply to that inbox. The server sends this as Resend's `replyTo` field; it does not need to match the verified sending domain.
+6. **Post client approval / custom domain** ([IMPLEMENTATION_PLAN.md Phase 10](IMPLEMENTATION_PLAN.md#phase-10--cicd--deployment)): Resend dashboard → **Domains → Add Domain** → add the DNS records (SPF/DKIM `TXT`/`CNAME`) it shows you at your domain registrar → once verified, change `RESEND_FROM_EMAIL` to an address using that domain, such as `Forth Urban <info@forthurban.com>`.
 
 ---
 
