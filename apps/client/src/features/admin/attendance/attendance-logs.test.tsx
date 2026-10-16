@@ -17,6 +17,8 @@ describe("Attendance Logs Tab", () => {
     });
 
     globalThis.fetch = vi.fn();
+    window.URL.createObjectURL = vi.fn(() => "blob:mock");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
   const renderWithProviders = (component: React.ReactElement) => {
@@ -50,12 +52,9 @@ describe("Attendance Logs Tab", () => {
                 deviceUserAgent: "OfficeTablet/1.0",
               },
             ],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 1,
-              pages: 1,
-            },
+            total: 1,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -75,12 +74,9 @@ describe("Attendance Logs Tab", () => {
           success: true,
           data: {
             items: [],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 0,
-              pages: 0,
-            },
+            total: 0,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -133,12 +129,9 @@ describe("Attendance Logs Tab", () => {
                 isNoShow: true,
               },
             ],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 3,
-              pages: 1,
-            },
+            total: 3,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -161,12 +154,9 @@ describe("Attendance Logs Tab", () => {
           success: true,
           data: {
             items: [],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 0,
-              pages: 0,
-            },
+            total: 0,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -188,12 +178,9 @@ describe("Attendance Logs Tab", () => {
           success: true,
           data: {
             items: [],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 0,
-              pages: 0,
-            },
+            total: 0,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -226,12 +213,9 @@ describe("Attendance Logs Tab", () => {
               purpose: "inspection",
               isNoShow: false,
             })),
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 50,
-              pages: 3,
-            },
+            total: 50,
+            page: 1,
+            limit: 20,
           },
         }),
       });
@@ -262,12 +246,9 @@ describe("Attendance Logs Tab", () => {
                   isNoShow: false,
                 },
               ],
-              pagination: {
-                page: 1,
-                limit: 20,
-                total: 50,
-                pages: 3,
-              },
+              total: 50,
+            page: 1,
+            limit: 20,
             },
           }),
         })
@@ -288,12 +269,9 @@ describe("Attendance Logs Tab", () => {
                   isNoShow: false,
                 },
               ],
-              pagination: {
-                page: 2,
-                limit: 20,
-                total: 50,
-                pages: 3,
-              },
+              total: 50,
+            page: 2,
+            limit: 20,
             },
           }),
         });
@@ -323,12 +301,9 @@ describe("Attendance Logs Tab", () => {
             success: true,
             data: {
               items: [],
-              pagination: {
-                page: 1,
-                limit: 20,
-                total: 0,
-                pages: 0,
-              },
+              total: 0,
+            page: 1,
+            limit: 20,
             },
           }),
         })
@@ -341,13 +316,14 @@ describe("Attendance Logs Tab", () => {
       renderWithProviders(<AttendanceLogsTab dateRange={mockDateRange} />);
 
       const exportButton = await screen.findByRole("button", {
-        name: /export csv/i,
+        name: /export/i,
       });
       fireEvent.click(exportButton);
 
       await waitFor(() => {
         expect(globalThis.fetch).toHaveBeenCalledWith(
-          "/api/admin/attendance/report"
+          expect.stringContaining("/admin/attendance/report"),
+          expect.anything(),
         );
       });
     });

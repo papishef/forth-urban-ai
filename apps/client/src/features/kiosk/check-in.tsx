@@ -349,8 +349,9 @@ function VisitorForm({
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold mb-2">Name *</label>
+          <label htmlFor="visitor-name" className="block text-sm font-semibold mb-2">Name *</label>
           <input
+            id="visitor-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -362,8 +363,9 @@ function VisitorForm({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Email</label>
+          <label htmlFor="visitor-email" className="block text-sm font-semibold mb-2">Email</label>
           <input
+            id="visitor-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -374,8 +376,9 @@ function VisitorForm({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Phone</label>
+          <label htmlFor="visitor-phone" className="block text-sm font-semibold mb-2">Phone</label>
           <input
+            id="visitor-phone"
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -386,8 +389,9 @@ function VisitorForm({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Purpose *</label>
+          <label htmlFor="visitor-purpose" className="block text-sm font-semibold mb-2">Purpose *</label>
           <select
+            id="visitor-purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             className="w-full p-4 rounded-lg border-2 text-lg"
