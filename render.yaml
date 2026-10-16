@@ -52,6 +52,12 @@ services:
         value: 15m
       - key: JWT_REFRESH_TTL
         value: 30d
+      - key: REGISTRATION_MIN_QUIZ_SECONDS
+        value: "20"
+      - key: REGISTRATION_EMAIL_DNS_CHECK
+        value: "true"
+      - key: UNVERIFIED_ACCOUNT_RETENTION_DAYS
+        value: "7"
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

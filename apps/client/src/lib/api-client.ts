@@ -33,10 +33,17 @@ function readStoredCsrfToken(): string | null {
   }
 }
 
-let csrfToken: string | null = readStoredCsrfToken();
+let csrfTokenMemory: string | null = readStoredCsrfToken();
+
+// Always prefer the persisted copy: another tab may have rotated the token
+// (each /auth/refresh issues a new one), and a stale in-memory value would
+// make this tab's next refresh fail the CSRF check and log the user out.
+function currentCsrfToken(): string | null {
+  return readStoredCsrfToken() ?? csrfTokenMemory;
+}
 
 export function setCsrfToken(token: string | null): void {
-  csrfToken = token;
+  csrfTokenMemory = token;
   if (typeof window === "undefined") return;
 
   try {
@@ -76,6 +83,7 @@ export const apiClient = axios.create({
 export function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const csrfToken = currentCsrfToken();
   if (csrfToken && ["POST", "PATCH", "PUT", "DELETE"].includes((init.method ?? "GET").toUpperCase())) {
     headers.set("x-csrf-token", csrfToken);
   }
@@ -86,6 +94,7 @@ apiClient.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.set("Authorization", `Bearer ${accessToken}`);
   }
+  const csrfToken = currentCsrfToken();
   if (csrfToken && config.method && ["post", "patch", "put", "delete"].includes(config.method)) {
     config.headers.set("x-csrf-token", csrfToken);
   }
@@ -96,25 +105,70 @@ apiClient.interceptors.request.use((config) => {
 // retrying these via refresh would be pointless/looping.
 const NO_RETRY_PATTERN = /\/auth\/(login|register|refresh|otp)/;
 
-let refreshPromise: Promise<string | null> | null = null;
+const REFRESH_LOCK_NAME = "forth-urban.auth-refresh";
 
-async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL}/auth/refresh`,
-      {},
-      { withCredentials: true, headers: csrfToken ? { "x-csrf-token": csrfToken } : {} },
-    );
-    const token = (res.data?.data?.tokens?.accessToken as string | undefined) ?? null;
-    const newCsrfToken = (res.data?.data?.tokens?.csrfToken as string | undefined) ?? null;
-    setAccessToken(token);
-    setCsrfToken(newCsrfToken);
-    return token;
-  } catch {
-    setAccessToken(null);
-    setCsrfToken(null);
-    return null;
-  }
+interface RefreshEnvelope<T> {
+  data: T | null;
+}
+
+interface RefreshedSession {
+  tokens: { accessToken: string; csrfToken: string };
+}
+
+/**
+ * Runs `task` while holding a browser-wide lock so only one tab rotates the
+ * refresh token at a time. Refresh tokens are single-use: two tabs refreshing
+ * with the same cookie concurrently would revoke each other's session.
+ */
+function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks?.request) return task();
+  return locks.request(REFRESH_LOCK_NAME, task) as Promise<T>;
+}
+
+interface RefreshOutcome<T> {
+  data: T | null;
+  /** True only when the server definitively rejected the session (401/403). */
+  expired: boolean;
+}
+
+let refreshSessionPromise: Promise<RefreshOutcome<unknown>> | null = null;
+
+function runRefresh<T extends RefreshedSession>(): Promise<RefreshOutcome<T>> {
+  refreshSessionPromise ??= withRefreshLock(async (): Promise<RefreshOutcome<unknown>> => {
+    try {
+      const csrfToken = currentCsrfToken();
+      const res = await axios.post<RefreshEnvelope<T>>(
+        `${API_BASE_URL}/auth/refresh`,
+        {},
+        { withCredentials: true, headers: csrfToken ? { "x-csrf-token": csrfToken } : {} },
+      );
+      const data = res.data?.data ?? null;
+      setAccessToken(data?.tokens.accessToken ?? null);
+      if (data?.tokens.csrfToken) setCsrfToken(data.tokens.csrfToken);
+      return { data, expired: !data };
+    } catch (error) {
+      setAccessToken(null);
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const expired = status === 401 || status === 403;
+      if (expired) setCsrfToken(null);
+      return { data: null, expired };
+    }
+  }).finally(() => {
+    refreshSessionPromise = null;
+  });
+
+  return refreshSessionPromise as Promise<RefreshOutcome<T>>;
+}
+
+/**
+ * Exchanges the httpOnly refresh cookie for a new access token, sliding the
+ * 30-day session forward. Returns null when no session could be restored.
+ * Only a definitive 401/403 clears the stored CSRF token — a flaky mobile
+ * connection must not log the user out.
+ */
+export async function refreshSession<T extends RefreshedSession>(): Promise<T | null> {
+  return (await runRefresh<T>()).data;
 }
 
 apiClient.interceptors.response.use(
@@ -144,13 +198,10 @@ apiClient.interceptors.response.use(
     }
 
     originalRequest._retry = true;
-    refreshPromise ??= refreshAccessToken().finally(() => {
-      refreshPromise = null;
-    });
-
-    const newToken = await refreshPromise;
+    const { data, expired } = await runRefresh();
+    const newToken = data?.tokens.accessToken ?? null;
     if (!newToken) {
-      onSessionExpired?.();
+      if (expired) onSessionExpired?.();
       return Promise.reject(error);
     }
 

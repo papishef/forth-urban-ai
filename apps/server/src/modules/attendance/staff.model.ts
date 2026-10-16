@@ -30,7 +30,7 @@ const staffSchema = new Schema({
   role: { type: String, required: true, trim: true, maxlength: 80 },
   badgeId: {
     type: String,
-    default: null,
+    default: undefined,
     unique: true,
     sparse: true,
     index: true,

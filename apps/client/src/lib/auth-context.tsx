@@ -5,9 +5,22 @@
 import * as React from "react";
 import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AuthResponse, RegistrationPendingDTO, UserDTO } from "@forth-urban/shared-types";
+import type {
+  AuthResponse,
+  EmailVerificationResponse,
+  HomeReadinessResultDTO,
+  RegistrationPendingDTO,
+  UserDTO,
+} from "@forth-urban/shared-types";
 import type { EmailVerificationInput, LoginInput, RegisterInput, OtpVerifyInput } from "@forth-urban/validation";
-import { apiClient, setAccessToken, setAdminAccessDeniedHandler, setCsrfToken, setSessionExpiredHandler } from "./api-client";
+import {
+  apiClient,
+  refreshSession,
+  setAccessToken,
+  setAdminAccessDeniedHandler,
+  setCsrfToken,
+  setSessionExpiredHandler,
+} from "./api-client";
 import { identifyAnalyticsUser, resetAnalytics } from "./analytics";
 
 interface ApiEnvelope<T> {
@@ -16,15 +29,21 @@ interface ApiEnvelope<T> {
   data: T | null;
 }
 
+/** Result of a sign-in that may also have activated the quiz submitted at registration. */
+export interface AuthCompletion {
+  user: UserDTO;
+  homeReadinessResult: HomeReadinessResultDTO | null;
+}
+
 interface AuthContextValue {
   user: UserDTO | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<UserDTO>;
   register: (input: RegisterInput) => Promise<RegistrationPendingDTO>;
-  verifyEmail: (input: EmailVerificationInput) => Promise<UserDTO>;
+  verifyEmail: (input: EmailVerificationInput) => Promise<AuthCompletion>;
   resendEmailVerification: (email: string) => Promise<void>;
-  verifyOtp: (input: OtpVerifyInput) => Promise<UserDTO>;
+  verifyOtp: (input: OtpVerifyInput) => Promise<AuthCompletion>;
   requestOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: UserDTO) => void;
@@ -36,9 +55,7 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 let initialRefreshPromise: Promise<AuthResponse | null> | null = null;
 
 function restoreSession(): Promise<AuthResponse | null> {
-  initialRefreshPromise ??= apiClient
-    .post<ApiEnvelope<AuthResponse>>("/auth/refresh")
-    .then((res) => res.data.data)
+  initialRefreshPromise ??= refreshSession<AuthResponse>()
     .catch(() => null)
     .finally(() => {
       initialRefreshPromise = null;
@@ -146,10 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyEmailMutation = useMutation({
     mutationFn: async (input: EmailVerificationInput) => {
-      const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/email-verification/verify", input);
-      return applyAuthResponse(res.data.data!);
+      const res = await apiClient.post<ApiEnvelope<EmailVerificationResponse>>("/auth/email-verification/verify", input);
+      const data = res.data.data!;
+      return { user: applyAuthResponse(data), homeReadinessResult: data.homeReadinessResult ?? null };
     },
-    onSuccess: (user) => setUser(user),
+    onSuccess: ({ user }) => setUser(user),
   });
 
   const resendEmailVerificationMutation = useMutation({
@@ -160,10 +178,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOtpMutation = useMutation({
     mutationFn: async (input: OtpVerifyInput) => {
-      const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/otp/verify", input);
-      return applyAuthResponse(res.data.data!);
+      const res = await apiClient.post<ApiEnvelope<EmailVerificationResponse>>("/auth/otp/verify", input);
+      const data = res.data.data!;
+      return { user: applyAuthResponse(data), homeReadinessResult: data.homeReadinessResult ?? null };
     },
-    onSuccess: (user) => setUser(user),
+    onSuccess: ({ user }) => setUser(user),
   });
 
   const requestOtpMutation = useMutation({

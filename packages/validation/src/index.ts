@@ -13,13 +13,34 @@ const passwordSchema = z
   .min(8, "Password must be at least 8 characters")
   .max(128, "Password is too long");
 
-export const registerSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required").max(60),
-  lastName: z.string().trim().min(1, "Last name is required").max(60),
+// Spam bots commonly stuff links/markup into name fields (they end up in
+// emails/admin views). Real names never need these characters.
+const SPAMMY_NAME_PATTERN =
+  /(https?:|www\.|:\/\/|[<>@{}[\]\\|]|\.(com|net|org|ru|xyz|top|info|biz|click|link|site|online|shop|io)\b)/i;
+
+function personNameSchema(label: string) {
+  return z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(60)
+    .refine((value) => !SPAMMY_NAME_PATTERN.test(value), `${label} contains characters that aren't allowed`);
+}
+
+/**
+ * Fields the user types on the registration form. The full API body
+ * (`registerSchema`, below) additionally requires the completed
+ * Home-Readiness Quiz answers and the server-issued quiz session token.
+ * `website` is a honeypot: hidden from humans, filled in by naive bots.
+ */
+export const registerFormSchema = z.object({
+  firstName: personNameSchema("First name"),
+  lastName: personNameSchema("Last name"),
   email: emailSchema,
   password: passwordSchema,
+  website: z.string().max(500).optional(),
 });
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterFormInput = z.infer<typeof registerFormSchema>;
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -162,6 +183,26 @@ export const homeReadinessAnswersSchema = z.object({
   inspectionPreference: inspectionPreferenceSchema,
 });
 export type HomeReadinessAnswers = z.infer<typeof homeReadinessAnswersSchema>;
+
+const quizSessionTokenSchema = z
+  .string({ required_error: "Complete the Home-Readiness Quiz before creating an account" })
+  .min(1, "Complete the Home-Readiness Quiz before creating an account")
+  .max(2048);
+
+/** Full POST /auth/register body — no account is created without completed quiz data. */
+export const registerSchema = registerFormSchema.extend({
+  homeReadiness: homeReadinessAnswersSchema,
+  quizSessionToken: quizSessionTokenSchema,
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+/** POST /auth/registration/google-intent — carries the completed quiz through the Google OAuth redirect. */
+export const googleRegistrationIntentSchema = z.object({
+  homeReadiness: homeReadinessAnswersSchema,
+  quizSessionToken: quizSessionTokenSchema,
+  website: z.string().max(500).optional(),
+});
+export type GoogleRegistrationIntentInput = z.infer<typeof googleRegistrationIntentSchema>;
 
 export const areaPreferenceSchema = z.enum([
   "premiumLiving",

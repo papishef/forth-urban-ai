@@ -13,7 +13,10 @@ export async function createStaff(input: StaffInput): Promise<StaffDocument> {
   const existing = await Staff.findOne({ email: input.email.toLowerCase() });
   if (existing) throw new ApiError(409, "A staff member with this email already exists");
 
-  const staff = new Staff(input);
+  const staff = new Staff({
+    ...input,
+    badgeId: input.badgeId ?? undefined,
+  });
   await staff.save();
   return staff;
 }
@@ -60,7 +63,9 @@ export async function updateStaff(id: string, input: StaffUpdateInput): Promise<
     if (existing) throw new ApiError(409, "A staff member with this email already exists");
   }
 
-  Object.assign(staff, input);
+  const updates = { ...input };
+  if (updates.badgeId === null) updates.badgeId = undefined;
+  Object.assign(staff, updates);
   await staff.save();
   return staff;
 }

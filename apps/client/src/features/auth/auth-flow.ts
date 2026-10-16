@@ -32,7 +32,11 @@ export function getAuthPagePath(path: "/login" | "/register" | "/login/otp", sea
 }
 
 interface AuthFlowCompletion {
-  complete: (user: UserDTO, destinationOverride?: string) => Promise<boolean>;
+  complete: (
+    user: UserDTO,
+    destinationOverride?: string,
+    savedHomeReadinessResult?: HomeReadinessResultDTO | null,
+  ) => Promise<boolean>;
   retryPendingQuiz: () => Promise<boolean>;
   authenticatedUser: UserDTO | null;
   isSavingQuiz: boolean;
@@ -51,7 +55,11 @@ export function useAuthFlowCompletion(): AuthFlowCompletion {
   const [quizSaveError, setQuizSaveError] = React.useState<string | null>(null);
 
   const complete = React.useCallback(
-    async (user: UserDTO, destinationOverride?: string): Promise<boolean> => {
+    async (
+      user: UserDTO,
+      destinationOverride?: string,
+      savedHomeReadinessResult?: HomeReadinessResultDTO | null,
+    ): Promise<boolean> => {
       setAuthenticatedUser(user);
       setQuizSaveError(null);
       const destination = destinationOverride ?? requestedDestination;
@@ -59,6 +67,14 @@ export function useAuthFlowCompletion(): AuthFlowCompletion {
       if (hasAdminSurface(user)) {
         clearPendingHomeReadinessQuiz();
         navigate(getAdminLandingPath(user), { replace: true });
+        return true;
+      }
+
+      // The server already saved the quiz submitted with the registration
+      // (works even when the confirmation link is opened on another device).
+      if (savedHomeReadinessResult) {
+        clearPendingHomeReadinessQuiz();
+        navigate(HOME_READINESS_RESULT_PATH, { replace: true, state: savedHomeReadinessResult });
         return true;
       }
 

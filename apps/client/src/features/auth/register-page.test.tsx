@@ -10,6 +10,7 @@ import type { HomeReadinessAnswers } from "@forth-urban/validation";
 const mockRegister = vi.fn();
 const mockNavigate = vi.fn();
 const mockSubmitPendingQuiz = vi.fn();
+const mockEnsureQuizSession = vi.fn();
 const pendingAnswers: HomeReadinessAnswers = {
   buyerGoal: "investment",
   budgetRange: { min: 1_000_000, max: 5_000_000 },
@@ -29,6 +30,7 @@ vi.mock("../../lib/auth-context", () => ({
 
 vi.mock("../quiz/quiz-api", () => ({
   useSubmitHomeReadinessQuiz: () => ({ mutateAsync: mockSubmitPendingQuiz }),
+  ensureRegistrationQuizSession: () => mockEnsureQuizSession(),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -53,8 +55,37 @@ describe("RegisterPage", () => {
     mockRegister.mockReset();
     mockNavigate.mockReset();
     mockSubmitPendingQuiz.mockReset();
+    mockEnsureQuizSession.mockReset();
+    mockEnsureQuizSession.mockResolvedValue("quiz-session-token");
     sessionStorage.clear();
     localStorage.clear();
+    savePendingHomeReadinessQuiz(pendingAnswers);
+  });
+
+  it("requires the readiness quiz before showing the registration form", async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    renderPage("/register?error=quiz_required");
+
+    expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/complete the home-readiness quiz/i);
+    await userEvent.click(screen.getByRole("button", { name: /take the home-readiness quiz/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/quiz/home-readiness");
+    expect(mockRegister).not.toHaveBeenCalled();
+  });
+
+  it("does not submit when the quiz session cannot be issued", async () => {
+    mockEnsureQuizSession.mockResolvedValue(null);
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText(/first name/i), "Jane");
+    await userEvent.type(screen.getByLabelText(/last name/i), "Doe");
+    await userEvent.type(screen.getByLabelText(/email/i), "jane@example.com");
+    await userEvent.type(screen.getByLabelText(/^password$/i), "supersecret");
+    await userEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(await screen.findByText(/could not verify your quiz session/i)).toBeInTheDocument();
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 
   it("shows validation errors when submitted empty", async () => {
@@ -85,13 +116,15 @@ describe("RegisterPage", () => {
         lastName: "Doe",
         email: "jane@example.com",
         password: "supersecret",
+        website: "",
+        homeReadiness: pendingAnswers,
+        quizSessionToken: "quiz-session-token",
       }),
     );
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/verify-email?email=jane%40example.com", { replace: true }));
   });
 
   it("preserves the pending readiness destination until email verification", async () => {
-    savePendingHomeReadinessQuiz(pendingAnswers);
     mockRegister.mockResolvedValue(mockPendingRegistration);
     renderPage("/register?next=%2Fquiz%2Fhome-readiness%2Fresult");
 

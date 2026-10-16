@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { ApiError } from "../../middleware/error-handler.js";
-import { env } from "../../config/env.js";
+import { REFRESH_TTL_MS, crossSiteCookieOptions } from "./cookies.js";
 
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_HEADER_NAME = "x-csrf-token";
@@ -13,20 +13,24 @@ const CSRF_HEADER_NAME = "x-csrf-token";
  * unrelated domains, so frontend JS can never read this cookie cross-origin
  * via document.cookie — the response-body copy is the only way it reaches
  * the client in that deployment shape.
+ *
+ * It must live exactly as long as the refresh cookie: /auth/refresh requires
+ * it, so a browser-session cookie here (no maxAge) silently logged users out
+ * whenever the browser/in-app webview was closed, despite a 30-day refresh
+ * token.
  */
 export function issueCsrfCookie(res: Response): string {
   const token = crypto.randomBytes(32).toString("hex");
   res.cookie(CSRF_COOKIE_NAME, token, {
+    ...crossSiteCookieOptions("/"),
     httpOnly: false,
-    secure: env.NODE_ENV === "production",
-    // Client and API are cross-site (different registrable domains), so the
-    // cookie must be SameSite=None to be sent back at all on cross-origin
-    // requests — SameSite=Lax silently drops cookies on cross-site
-    // fetch/XHR (it only allows top-level GET navigations).
-    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
-    path: "/",
+    maxAge: REFRESH_TTL_MS,
   });
   return token;
+}
+
+export function clearCsrfCookie(res: Response): void {
+  res.clearCookie(CSRF_COOKIE_NAME, { ...crossSiteCookieOptions("/"), httpOnly: false });
 }
 
 /**

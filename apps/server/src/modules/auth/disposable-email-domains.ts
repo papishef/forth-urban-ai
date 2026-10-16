@@ -1,0 +1,91 @@
+/**
+ * Common disposable / throwaway inbox providers. Not exhaustive — it targets
+ * the high-volume services bots actually use. Subdomains are matched too
+ * (e.g. `x.mailinator.com`). Extend as new abuse domains show up in logs
+ * (look for "Registration blocked" warnings).
+ */
+export const DISPOSABLE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
+  "10minutemail.com",
+  "10minutemail.net",
+  "20minutemail.com",
+  "33mail.com",
+  "anonaddy.me",
+  "burnermail.io",
+  "byom.de",
+  "dispostable.com",
+  "dropmail.me",
+  "emailondeck.com",
+  "emailfake.com",
+  "emltmp.com",
+  "fakeinbox.com",
+  "fakemail.net",
+  "getairmail.com",
+  "getnada.com",
+  "guerrillamail.biz",
+  "guerrillamail.com",
+  "guerrillamail.de",
+  "guerrillamail.info",
+  "guerrillamail.net",
+  "guerrillamail.org",
+  "guerrillamailblock.com",
+  "harakirimail.com",
+  "inboxbear.com",
+  "inboxkitten.com",
+  "incognitomail.org",
+  "jetable.org",
+  "kasmail.com",
+  "linshiyouxiang.net",
+  "maildrop.cc",
+  "mailcatch.com",
+  "maildim.com",
+  "mailinator.com",
+  "mailinator.net",
+  "mailinator2.com",
+  "mailnesia.com",
+  "mailpoof.com",
+  "mailsac.com",
+  "mailtemp.net",
+  "mintemail.com",
+  "mohmal.com",
+  "moakt.com",
+  "mytemp.email",
+  "nada.email",
+  "nwytg.net",
+  "owlymail.com",
+  "pokemail.net",
+  "sharklasers.com",
+  "spam4.me",
+  "spambox.us",
+  "spamgourmet.com",
+  "temp-mail.io",
+  "temp-mail.org",
+  "tempail.com",
+  "tempinbox.com",
+  "tempmail.com",
+  "tempmail.dev",
+  "tempmail.net",
+  "tempmail.plus",
+  "tempmailo.com",
+  "tempr.email",
+  "throwawaymail.com",
+  "tmail.ws",
+  "tmailor.com",
+  "tmpmail.net",
+  "tmpmail.org",
+  "trashmail.com",
+  "trashmail.de",
+  "trashmail.net",
+  "yopmail.com",
+  "yopmail.fr",
+  "yopmail.net",
+  "zeroe.ml",
+]);
+
+export function isDisposableEmailDomain(domain: string): boolean {
+  const normalized = domain.toLowerCase().replace(/\.$/, "");
+  const labels = normalized.split(".");
+  for (let i = 0; i < labels.length - 1; i += 1) {
+    if (DISPOSABLE_EMAIL_DOMAINS.has(labels.slice(i).join("."))) return true;
+  }
+  return false;
+}

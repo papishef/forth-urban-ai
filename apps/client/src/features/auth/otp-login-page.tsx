@@ -33,8 +33,8 @@ export function OtpLoginPage() {
   const onVerify = verifyForm.handleSubmit(async (values) => {
     setServerError(null);
     try {
-      const user = await verifyOtp(values);
-      await complete(user);
+      const { user, homeReadinessResult } = await verifyOtp(values);
+      await complete(user, undefined, homeReadinessResult);
     } catch (err) {
       setServerError(getErrorMessage(err, "Incorrect or expired code"));
     }

@@ -139,11 +139,17 @@ export const openApiDocument = {
   paths: {
     "/health": { get: op("Liveness check", ["Health"], { auth: "none" }) },
 
-    "/auth/register": { post: op("Register with email + password; confirmation is required before login", ["Auth"], { auth: "none", body: true, successStatus: 201 }) },
+    "/auth/registration/quiz-session": {
+      post: op("Start an anonymous Home-Readiness Quiz session; returns the single-use token registration requires", ["Auth"], { auth: "none", successStatus: 201 }),
+    },
+    "/auth/registration/google-intent": {
+      post: op("Store a completed quiz before Google sign-up; returns an intent token for the OAuth state", ["Auth"], { auth: "none", body: true, successStatus: 201 }),
+    },
+    "/auth/register": { post: op("Register with email + password + completed Home-Readiness Quiz answers and quiz session token; confirmation is required before login", ["Auth"], { auth: "none", body: true, successStatus: 201 }) },
     "/auth/login": { post: op("Log in with email + password", ["Auth"], { auth: "none", body: true }) },
     "/auth/email-verification/resend": { post: op("Resend a confirmation email without revealing account existence", ["Auth"], { auth: "none", body: true }) },
-    "/auth/email-verification/verify": { post: op("Confirm an email address and create the first session", ["Auth"], { auth: "none", body: true }) },
-    "/auth/otp/request": { post: op("Request an email OTP code", ["Auth"], { auth: "none", body: true }) },
+    "/auth/email-verification/verify": { post: op("Confirm an email address, save the registration quiz result and create the first session", ["Auth"], { auth: "none", body: true }) },
+    "/auth/otp/request": { post: op("Request an email OTP sign-in code (existing accounts only; never creates accounts)", ["Auth"], { auth: "none", body: true }) },
     "/auth/otp/verify": { post: op("Verify an email OTP code and log in", ["Auth"], { auth: "none", body: true }) },
     "/auth/refresh": {
       post: op("Exchange the refresh cookie for a new access token (requires CSRF header)", ["Auth"], { auth: "none" }),
@@ -155,7 +161,7 @@ export const openApiDocument = {
     "/auth/password/reset": { post: op("Reset password with a reset token", ["Auth"], { auth: "none", body: true }) },
     "/auth/password/verify": { post: op("Issue a short-lived re-authentication token", ["Auth"], { body: true }) },
     "/auth/password/change": { post: op("Change the authenticated user's password", ["Auth"], { body: true }) },
-    "/auth/google": { get: op("Start Google OAuth login (redirect)", ["Auth"], { auth: "none" }) },
+    "/auth/google": { get: op("Start Google OAuth login (redirect); new accounts require ?intent= from /auth/registration/google-intent", ["Auth"], { auth: "none" }) },
     "/auth/google/callback": { get: op("Google OAuth callback (redirect)", ["Auth"], { auth: "none" }) },
     "/auth/me": { get: op("Get the current authenticated user", ["Auth"]) },
 

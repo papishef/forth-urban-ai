@@ -22,7 +22,24 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().default("dev-access-secret-change-me"),
   JWT_REFRESH_SECRET: z.string().default("dev-refresh-secret-change-me"),
   JWT_ACCESS_TTL: z.string().default("15m"),
+  // Sliding 30-day login: every silent refresh rotates the refresh token and
+  // restarts this window, so active users/admins stay signed in indefinitely
+  // and idle ones are signed out after 30 days without a visit.
   JWT_REFRESH_TTL: z.string().default("30d"),
+
+  // Anti-spam registration controls (see modules/auth/registration-guard.ts).
+  // Minimum time between the server issuing a quiz session token and the
+  // account being created — scripted sign-ups complete instantly.
+  REGISTRATION_MIN_QUIZ_SECONDS: z.coerce.number().int().min(0).max(600).default(20),
+  REGISTRATION_QUIZ_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(24),
+  // MX/A lookup on the email domain at registration; skipped in tests.
+  REGISTRATION_EMAIL_DNS_CHECK: z
+    .string()
+    .default("true")
+    .transform((value) => value === "true"),
+  // Never-verified local accounts are soft-deleted (and their email released)
+  // after this many days by the daily cleanup job.
+  UNVERIFIED_ACCOUNT_RETENTION_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

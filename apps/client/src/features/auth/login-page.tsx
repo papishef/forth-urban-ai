@@ -12,6 +12,7 @@ import {
   useAuthFlowCompletion,
 } from "./auth-flow";
 import { AuthLayout } from "./auth-layout";
+import { GoogleSignInButton } from "./google-sign-in-button";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -102,17 +103,11 @@ export function LoginPage() {
             {isSavingQuiz ? "Saving your result…" : isSubmitting ? "Logging in…" : "Log in"}
           </Button>
         )}
-        <a
-          href={`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api"}/auth/google`}
-          className="w-full"
-          onClick={() => {
+        <GoogleSignInButton
+          onBeforeRedirect={() => {
             if (isReadinessHandoff) markPendingHomeReadinessAuthHandoff();
           }}
-        >
-          <Button type="button" variant="secondary" className="w-full">
-            Continue with Google
-          </Button>
-        </a>
+        />
         <Link to={getAuthPagePath("/login/otp", location.search)} className="text-center text-sm text-[#5C4033] underline">
           Log in with a one-time code instead
         </Link>

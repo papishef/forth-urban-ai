@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { BuildingLoader, Button, MotionCard, CardContent, CardHeader, CardTitle, Input, Label, Progress, PageTransition, Logo } from "@forth-urban/ui";
 import { homeReadinessAnswersSchema, type HomeReadinessAnswers } from "@forth-urban/validation";
-import { useStartHomeReadinessQuiz, useSubmitHomeReadinessQuiz } from "./quiz-api";
+import { ensureRegistrationQuizSession, useStartHomeReadinessQuiz, useSubmitHomeReadinessQuiz } from "./quiz-api";
 import {
   clearPendingHomeReadinessQuiz,
   getPendingHomeReadinessProgress,
@@ -148,9 +148,12 @@ export function HomeReadinessQuizPage() {
   }, [formValues, isAuthenticated, stepIndex]);
 
   React.useEffect(() => {
-    if (!isAuthLoading && isAuthenticated && !startedRef.current) {
-      startedRef.current = true;
+    if (isAuthLoading || startedRef.current) return;
+    startedRef.current = true;
+    if (isAuthenticated) {
       startQuiz.mutate();
+    } else {
+      void ensureRegistrationQuizSession();
     }
   }, [isAuthLoading, isAuthenticated, startQuiz]);
 

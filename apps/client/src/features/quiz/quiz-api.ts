@@ -1,7 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AreaQuizAnswers, HomeReadinessAnswers } from "@forth-urban/validation";
-import type { AreaQuizResultDTO, HomeReadinessResultDTO, ProfileDTO } from "@forth-urban/shared-types";
+import type {
+  AreaQuizResultDTO,
+  HomeReadinessResultDTO,
+  ProfileDTO,
+  RegistrationQuizSessionDTO,
+} from "@forth-urban/shared-types";
 import { apiClient } from "../../lib/api-client";
+import { getPendingQuizSessionToken, savePendingQuizSessionToken } from "./pending-home-readiness";
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -15,6 +21,33 @@ export function useStartHomeReadinessQuiz() {
       await apiClient.post("/quiz/home-readiness/start");
     },
   });
+}
+
+let quizSessionRequest: Promise<string | null> | null = null;
+
+/**
+ * Makes sure an anonymous visitor holds a server-issued quiz session token —
+ * required by POST /auth/register. Requested when the quiz starts so the
+ * token is old enough (server-enforced minimum quiz duration) by sign-up.
+ */
+export function ensureRegistrationQuizSession(): Promise<string | null> {
+  const existing = getPendingQuizSessionToken();
+  if (existing) return Promise.resolve(existing);
+
+  quizSessionRequest ??= apiClient
+    .post<ApiEnvelope<RegistrationQuizSessionDTO>>("/auth/registration/quiz-session")
+    .then((res) => {
+      const session = res.data.data;
+      if (!session) return null;
+      savePendingQuizSessionToken(session.quizSessionToken, session.expiresAt);
+      return session.quizSessionToken;
+    })
+    .catch(() => null)
+    .finally(() => {
+      quizSessionRequest = null;
+    });
+
+  return quizSessionRequest;
 }
 
 export function useSubmitHomeReadinessQuiz() {

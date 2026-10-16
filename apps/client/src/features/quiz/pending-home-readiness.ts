@@ -3,6 +3,7 @@ import { homeReadinessAnswersSchema, type HomeReadinessAnswers } from "@forth-ur
 const PENDING_HOME_READINESS_KEY = "forth-urban.pending-home-readiness";
 const PENDING_HOME_READINESS_PROGRESS_KEY = "forth-urban.pending-home-readiness-progress";
 const PENDING_HOME_READINESS_AUTH_KEY = "forth-urban.pending-home-readiness-auth";
+const PENDING_QUIZ_SESSION_KEY = "forth-urban.pending-home-readiness-session";
 const PENDING_HOME_READINESS_VERSION = 1;
 const PENDING_HOME_READINESS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -232,10 +233,51 @@ export function clearPendingHomeReadinessQuiz(): void {
       storage.removeItem(PENDING_HOME_READINESS_KEY);
       storage.removeItem(PENDING_HOME_READINESS_PROGRESS_KEY);
       storage.removeItem(PENDING_HOME_READINESS_AUTH_KEY);
+      storage.removeItem(PENDING_QUIZ_SESSION_KEY);
     } catch {
       // Storage can be unavailable in privacy-restricted browser contexts.
     }
   }
+}
+
+/**
+ * Server-signed token issued when an anonymous visitor starts the quiz. The
+ * server only creates an account when registration carries this token, so it
+ * is kept alongside the pending answers until sign-up completes.
+ */
+export function savePendingQuizSessionToken(token: string, expiresAt: string): void {
+  const storage = getLocalStorage() ?? getSessionStorage();
+  if (!storage) return;
+
+  try {
+    storage.setItem(PENDING_QUIZ_SESSION_KEY, JSON.stringify({ token, expiresAt }));
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+}
+
+export function getPendingQuizSessionToken(): string | null {
+  for (const storage of [getLocalStorage(), getSessionStorage()]) {
+    if (!storage) continue;
+
+    try {
+      const raw = storage.getItem(PENDING_QUIZ_SESSION_KEY);
+      if (!raw) continue;
+
+      const parsed: unknown = JSON.parse(raw);
+      const token = isRecord(parsed) ? parsed.token : null;
+      const expiresAt = isRecord(parsed) && typeof parsed.expiresAt === "string" ? Date.parse(parsed.expiresAt) : NaN;
+      if (typeof token !== "string" || !token || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        storage.removeItem(PENDING_QUIZ_SESSION_KEY);
+        continue;
+      }
+      return token;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export function markPendingHomeReadinessAuthHandoff(): void {

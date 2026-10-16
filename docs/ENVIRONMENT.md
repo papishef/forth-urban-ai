@@ -20,7 +20,11 @@ Every environment (your laptop, a Vercel/Render **Preview** deploy for a PR, and
 | `JWT_ACCESS_SECRET` | required | long random string, e.g. `openssl rand -hex 32` | generate yourself |
 | `JWT_REFRESH_SECRET` | required | long random string, **different** from the access secret | generate yourself |
 | `JWT_ACCESS_TTL` | optional (default `15m`) | | n/a |
-| `JWT_REFRESH_TTL` | optional (default `30d`) | | n/a |
+| `JWT_REFRESH_TTL` | optional (default `30d`) | Sliding login window: every refresh rotates the token and restarts the window, so active users/admins stay signed in; the CSRF cookie uses the same lifetime | n/a |
+| `REGISTRATION_MIN_QUIZ_SECONDS` | optional (default `20`) | Minimum seconds between starting the readiness quiz and registering; faster submissions are rejected as automated | n/a |
+| `REGISTRATION_QUIZ_SESSION_TTL_HOURS` | optional (default `24`) | How long a signed quiz-session token can be used to register | n/a |
+| `REGISTRATION_EMAIL_DNS_CHECK` | optional (default `true`) | Reject sign-ups whose email domain has no MX/A record (fails open on DNS errors) | n/a |
+| `UNVERIFIED_ACCOUNT_RETENTION_DAYS` | optional (default `7`) | Unverified accounts older than this are soft-deleted by the daily 03:00 cleanup job | n/a |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional (Google login 503s if unset) | | Google Cloud Console → APIs & Services → Credentials (§2) |
 | `GOOGLE_CALLBACK_URL` | required if Google OAuth used | e.g. `https://forth-urban-api.onrender.com/api/auth/google/callback` | your Render URL |
 | `RESEND_API_KEY` | required in production; optional locally (emails log) | | Resend dashboard → API Keys (§6) |

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "seed:properties": "tsx ../../scripts/seed-properties.ts",
-    "migrate:roles": "tsx ../../scripts/migrate-sales-role.ts"
+    "migrate:roles": "tsx ../../scripts/migrate-sales-role.ts",
+    "cleanup:spam-users": "tsx ../../scripts/cleanup-spam-users.ts"
   },
   "dependencies": {
     "@forth-urban/shared-types": "workspace:*",

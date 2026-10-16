@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthResponse } from "@forth-urban/shared-types";
-import { apiClient } from "../../lib/api-client";
+import { refreshSession, setCsrfToken } from "../../lib/api-client";
 import { useAuth } from "../../lib/auth-context";
 import {
   HOME_READINESS_RESULT_PATH,
@@ -9,12 +9,6 @@ import {
 } from "./auth-flow";
 import { hasPendingHomeReadinessAuthHandoff } from "../quiz/pending-home-readiness";
 import { Button } from "@forth-urban/ui";
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  message: string;
-  data: T | null;
-}
 
 /**
  * Landing page after the Passport Google OAuth redirect. The server has
@@ -36,9 +30,17 @@ export function GoogleCallbackPage() {
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await apiClient.post<ApiEnvelope<AuthResponse>>("/auth/refresh");
-        if (!res.data.data) throw new Error("Session could not be restored");
-        const user = applyAuthResponse(res.data.data);
+        // The API hands over the CSRF token in the URL fragment (client and
+        // API are cross-site, so its cookie isn't readable here). Strip it
+        // from the address bar immediately.
+        const csrfFromFragment = new URLSearchParams(window.location.hash.slice(1)).get("csrf");
+        if (csrfFromFragment) {
+          setCsrfToken(csrfFromFragment);
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+        const data = await refreshSession<AuthResponse>();
+        if (!data) throw new Error("Session could not be restored");
+        const user = applyAuthResponse(data);
         await complete(user, shouldResumeQuiz ? HOME_READINESS_RESULT_PATH : undefined);
       } catch {
         navigate("/login?error=google", { replace: true });

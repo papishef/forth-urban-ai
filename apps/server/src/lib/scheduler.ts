@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { sendAbandonedQuizReminders } from "../modules/notifications/index.js";
+import { purgeStaleUnverifiedAccounts } from "../modules/auth/spam-account-cleanup.service.js";
 
 /**
  * Daily cron job for the quiz-abandonment nurture email
@@ -23,5 +24,13 @@ export function startScheduler(): void {
     });
   });
 
-  logger.info("Scheduled daily abandoned-quiz reminder job");
+  // Once a day at 03:00: soft-delete never-verified sign-ups (spam / typo
+  // emails) so they don't pile up or lock email addresses.
+  cron.schedule("0 3 * * *", () => {
+    purgeStaleUnverifiedAccounts(env.UNVERIFIED_ACCOUNT_RETENTION_DAYS).catch((err) => {
+      logger.error({ err }, "Unverified-account purge job failed");
+    });
+  });
+
+  logger.info("Scheduled daily abandoned-quiz reminder and unverified-account purge jobs");
 }

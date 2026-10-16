@@ -3,8 +3,13 @@ import type {
   RegisterInput,
   LoginInput,
   EmailVerificationInput,
+  GoogleRegistrationIntentInput,
+  HomeReadinessAnswers,
 } from "@forth-urban/validation";
-import type { AuthResponse } from "@forth-urban/shared-types";
+import { homeReadinessAnswersSchema } from "@forth-urban/validation";
+import type { AuthResponse, GoogleRegistrationIntentDTO, HomeReadinessResultDTO } from "@forth-urban/shared-types";
+import crypto from "node:crypto";
+import { logger } from "../../config/logger.js";
 import { ApiError } from "../../middleware/error-handler.js";
 import { recordAuditLog } from "../../lib/audit-log.service.js";
 import { sendEmail, otpEmailHtml, emailVerificationEmailHtml, passwordResetEmailHtml } from "../../lib/email.service.js";
@@ -19,11 +24,28 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken, getTokenExpiry }
 import { refreshExpiresAt } from "./cookies.js";
 import { env } from "../../config/env.js";
 import { issueReauthToken } from "./reauth.service.js";
+import { submitHomeReadinessQuiz } from "../quiz/quiz.service.js";
+import { RegistrationIntent } from "./registration-intent.model.js";
+import {
+  assertRegistrationEmailAllowed,
+  consumeRegistrationQuizSession,
+  isHoneypotTriggered,
+  isRegistrationQuizSessionConsumed,
+  verifyRegistrationQuizSession,
+} from "./registration-guard.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
 const EMAIL_CONFIRMATION_REQUIRED_MESSAGE = "Please confirm your email before logging in";
+const GOOGLE_INTENT_TTL_MS = 15 * 60 * 1000;
+
+/** Quiz answers captured at sign-up, held on the user until the email is verified. */
+interface PendingRegistrationQuiz {
+  answers: HomeReadinessAnswers;
+  quizStartedAt: string;
+  submittedAt: string;
+}
 
 interface RequestMeta {
   ip: string | null;
@@ -104,8 +126,31 @@ function toAuthResponse(user: UserDocument, tokens: IssuedTokens): AuthResponse 
 }
 
 export async function register(input: RegisterInput, meta: RequestMeta) {
+  const pending = {
+    email: input.email,
+    requiresEmailVerification: true as const,
+  };
+
+  // Honeypot: bots fill every field. Return the normal success shape so the
+  // bot learns nothing, but create no account and send no email.
+  if (isHoneypotTriggered(input.website)) {
+    logger.warn({ ip: meta.ip, reason: "honeypot" }, "Registration blocked");
+    return { pending };
+  }
+
+  const quizSession = verifyRegistrationQuizSession(input.quizSessionToken, meta.ip);
+
   const existing = await User.findOne({ email: input.email });
   if (existing) throw new ApiError(409, "An account with this email already exists");
+
+  await assertRegistrationEmailAllowed(input.email, meta.ip);
+  await consumeRegistrationQuizSession(quizSession, { ip: meta.ip });
+
+  const registrationQuiz: PendingRegistrationQuiz = {
+    answers: input.homeReadiness,
+    quizStartedAt: quizSession.issuedAt.toISOString(),
+    submittedAt: new Date().toISOString(),
+  };
 
   const passwordHash = await hashSecret(input.password);
   const user = await User.create({
@@ -115,6 +160,7 @@ export async function register(input: RegisterInput, meta: RequestMeta) {
     passwordHash,
     authProvider: "local",
     emailVerified: false,
+    registrationQuiz,
   });
 
   await issueEmailVerification(user, true);
@@ -128,12 +174,31 @@ export async function register(input: RegisterInput, meta: RequestMeta) {
     ipAddress: meta.ip,
   });
 
-  return {
-    pending: {
-      email: user.email,
-      requiresEmailVerification: true as const,
-    },
-  };
+  return { pending };
+}
+
+/**
+ * Turns the quiz answers captured at registration into the user's real quiz
+ * result + profile once they prove they own the email. Never blocks sign-in:
+ * a failure here is logged and the user can simply retake the quiz.
+ */
+async function activateRegistrationQuiz(
+  user: UserDocument,
+  meta: RequestMeta,
+): Promise<HomeReadinessResultDTO | null> {
+  const withQuiz = await User.findById(user._id).select("+registrationQuiz");
+  const stored = withQuiz?.get("registrationQuiz") as PendingRegistrationQuiz | null | undefined;
+  if (!stored) return null;
+
+  try {
+    const answers = homeReadinessAnswersSchema.parse(stored.answers);
+    const result = await submitHomeReadinessQuiz(user._id.toString(), answers, { ip: meta.ip });
+    await User.updateOne({ _id: user._id }, { $set: { registrationQuiz: null } });
+    return result;
+  } catch (err) {
+    logger.error({ err, userId: user._id.toString() }, "Failed to activate registration quiz");
+    return null;
+  }
 }
 
 export async function login(input: LoginInput, meta: RequestMeta) {
@@ -226,7 +291,12 @@ export async function verifyEmail(input: EmailVerificationInput, meta: RequestMe
     ipAddress: meta.ip,
   });
 
-  return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
+  const homeReadinessResult = await activateRegistrationQuiz(user, meta);
+
+  return {
+    authResponse: { ...toAuthResponse(user, tokens), homeReadinessResult },
+    refreshToken: tokens.refreshToken,
+  };
 }
 
 /**
@@ -266,8 +336,16 @@ export async function changePassword(userId: string, input: ChangePasswordInput,
   return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
 }
 
-/** Requests an OTP for email verification or passwordless login (Resend email). */
+/**
+ * Requests a passwordless sign-in code. Codes are only sent to existing
+ * accounts — OTP sign-in never creates accounts, so it can't be used to
+ * bypass the quiz-gated registration or to spam arbitrary inboxes. The
+ * response is identical either way so account existence isn't revealed.
+ */
 export async function requestOtp(email: string): Promise<void> {
+  const user = await User.findOne({ email });
+  if (!user || user.status === "suspended") return;
+
   const code = generateNumericCode(6);
   await Otp.create({
     email,
@@ -298,22 +376,18 @@ export async function verifyOtp(email: string, code: string, meta: RequestMeta) 
   otp.set("consumedAt", new Date());
   await otp.save();
 
-  let user = await User.findOne({ email });
+  const user = await User.findOne({ email });
   if (!user) {
-    const [firstName, ...rest] = email.split("@")[0]!.split(/[._-]/);
-    user = await User.create({
-      firstName: firstName ?? "Forth",
-      lastName: rest.join(" ") || "Urban User",
-      email,
-      authProvider: "local",
-      emailVerified: true,
-    });
-  } else if (!user.emailVerified) {
+    throw new ApiError(400, "No account found for this email. Take the Home-Readiness Quiz to create one.");
+  }
+
+  if (!user.emailVerified) {
     user.set("emailVerified", true);
     await user.save();
   }
 
   const tokens = await issueSession(user, meta);
+  const homeReadinessResult = await activateRegistrationQuiz(user, meta);
 
   await recordAuditLog({
     actorId: user._id.toString(),
@@ -324,7 +398,85 @@ export async function verifyOtp(email: string, code: string, meta: RequestMeta) 
     ipAddress: meta.ip,
   });
 
-  return { authResponse: toAuthResponse(user, tokens), refreshToken: tokens.refreshToken };
+  return {
+    authResponse: { ...toAuthResponse(user, tokens), homeReadinessResult },
+    refreshToken: tokens.refreshToken,
+  };
+}
+
+function hashIntentToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Stores a completed quiz for a visitor about to sign up with Google. The
+ * returned opaque token travels through the OAuth `state` parameter; a new
+ * Google account is only created when it comes back with a valid intent.
+ */
+export async function createGoogleRegistrationIntent(
+  input: GoogleRegistrationIntentInput,
+  meta: RequestMeta,
+): Promise<GoogleRegistrationIntentDTO> {
+  const intentToken = generateOpaqueToken();
+  const expiresAt = new Date(Date.now() + GOOGLE_INTENT_TTL_MS);
+
+  if (isHoneypotTriggered(input.website)) {
+    logger.warn({ ip: meta.ip, reason: "honeypot" }, "Google registration intent blocked");
+    return { intentToken, expiresAt: expiresAt.toISOString() };
+  }
+
+  const quizSession = verifyRegistrationQuizSession(input.quizSessionToken, meta.ip);
+  if (await isRegistrationQuizSessionConsumed(quizSession.jti)) {
+    throw new ApiError(400, "Your quiz session has expired. Please retake the Home-Readiness Quiz to create your account.");
+  }
+
+  await RegistrationIntent.create({
+    tokenHash: hashIntentToken(intentToken),
+    provider: "google",
+    answers: input.homeReadiness,
+    quizSessionJti: quizSession.jti,
+    quizSessionExpiresAt: quizSession.expiresAt,
+    ip: meta.ip,
+    expiresAt,
+  });
+
+  return { intentToken, expiresAt: expiresAt.toISOString() };
+}
+
+/**
+ * Atomically claims a Google registration intent. Returns the quiz answers
+ * when the intent is valid, unexpired and unused; null otherwise.
+ */
+export async function consumeGoogleRegistrationIntent(
+  intentToken: string | null | undefined,
+  meta: { ip: string | null },
+): Promise<{ answers: HomeReadinessAnswers; quizSessionJti: string; quizSessionExpiresAt: Date } | null> {
+  if (!intentToken || intentToken.length > 256) return null;
+
+  const intent = await RegistrationIntent.findOneAndUpdate(
+    { tokenHash: hashIntentToken(intentToken), consumedAt: null, expiresAt: { $gt: new Date() } },
+    { $set: { consumedAt: new Date() } },
+    { new: true },
+  );
+  if (!intent) return null;
+
+  const parsed = homeReadinessAnswersSchema.safeParse(intent.answers);
+  if (!parsed.success) return null;
+
+  try {
+    await consumeRegistrationQuizSession(
+      { jti: intent.quizSessionJti, issuedAt: new Date(0), expiresAt: intent.quizSessionExpiresAt },
+      { ip: meta.ip },
+    );
+  } catch {
+    return null;
+  }
+
+  return {
+    answers: parsed.data,
+    quizSessionJti: intent.quizSessionJti,
+    quizSessionExpiresAt: intent.quizSessionExpiresAt,
+  };
 }
 
 export async function refresh(refreshToken: string | undefined, meta: RequestMeta) {

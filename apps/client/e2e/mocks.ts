@@ -87,6 +87,16 @@ export async function installApiMocks(page: Page, state: MockState = { hasComple
     if (path === "/auth/refresh" && method === "POST") {
       return jsonRoute(route, { success: false, message: "No session", data: null }, 401);
     }
+    if (path === "/auth/registration/quiz-session" && method === "POST") {
+      return jsonRoute(
+        route,
+        envelope({
+          quizSessionToken: "mock-quiz-session-token",
+          expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+          minCompletionSeconds: 20,
+        }),
+      );
+    }
     if (path === "/auth/register" && method === "POST") {
       return jsonRoute(route, envelope({ email: "jane.e2e@example.com", requiresEmailVerification: true }));
     }
@@ -100,6 +110,7 @@ export async function installApiMocks(page: Page, state: MockState = { hasComple
             accessTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
             csrfToken: "mock-csrf-token",
           },
+          homeReadinessResult: null,
         }),
       );
     }

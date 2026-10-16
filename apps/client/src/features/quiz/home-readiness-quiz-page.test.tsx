@@ -18,6 +18,7 @@ vi.mock("react-router-dom", async () => {
 vi.mock("./quiz-api", () => ({
   useStartHomeReadinessQuiz: () => ({ mutate: mockStartMutate }),
   useSubmitHomeReadinessQuiz: () => ({ mutateAsync: mockSubmitMutateAsync, isPending: false }),
+  ensureRegistrationQuizSession: vi.fn().mockResolvedValue("quiz-session-token"),
 }));
 
 vi.mock("../../lib/auth-context", () => ({

@@ -32,8 +32,8 @@ export function VerifyEmailPage() {
     setServerError(null);
     setIsVerifying(true);
     try {
-      const user = await verifyEmail({ email, token });
-      await complete(user);
+      const { user, homeReadinessResult } = await verifyEmail({ email, token });
+      await complete(user, undefined, homeReadinessResult);
     } catch (error) {
       setServerError(getErrorMessage(error, "This confirmation link is invalid or has expired."));
     } finally {

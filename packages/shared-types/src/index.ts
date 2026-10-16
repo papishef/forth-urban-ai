@@ -175,6 +175,28 @@ export interface RegistrationPendingDTO {
   requiresEmailVerification: true;
 }
 
+/**
+ * Server-issued, signed proof that an anonymous visitor started the
+ * Home-Readiness Quiz. Required (with the completed answers) to register,
+ * so accounts can't be created by scripting POST /auth/register directly.
+ */
+export interface RegistrationQuizSessionDTO {
+  quizSessionToken: string;
+  expiresAt: string;
+  minCompletionSeconds: number;
+}
+
+/** Short-lived handle that carries a completed quiz through the Google OAuth redirect. */
+export interface GoogleRegistrationIntentDTO {
+  intentToken: string;
+  expiresAt: string;
+}
+
+/** Email verification response — the quiz submitted at registration is saved server-side on activation. */
+export interface EmailVerificationResponse extends AuthResponse {
+  homeReadinessResult: HomeReadinessResultDTO | null;
+}
+
 export interface KioskSessionDTO {
   token: string;
   expiresAt: string;

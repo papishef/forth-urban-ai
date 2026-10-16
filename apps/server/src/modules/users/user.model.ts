@@ -48,6 +48,13 @@ const userSchema = new Schema({
   role: { type: String, enum: ["user", "admin"], default: "user" },
   status: { type: String, enum: ["active", "suspended"], default: "active" },
   adminAccess: { type: adminAccessSchema, default: null },
+  // Completed Home-Readiness Quiz submitted with the registration form. Held
+  // here until the email is confirmed, then saved via the quiz service (so
+  // nurture emails never go to unconfirmed/spam addresses) and cleared.
+  registrationQuiz: { type: Schema.Types.Mixed, default: null, select: false },
+  // Original email of a soft-deleted account; `email` is tombstoned so the
+  // unique index doesn't keep the address locked forever.
+  deletedEmail: { type: String, default: null, select: false },
   tenantId: { type: String, default: null },
 });
 

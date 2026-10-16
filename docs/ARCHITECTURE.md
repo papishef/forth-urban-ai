@@ -188,7 +188,7 @@ Full ERD lives in `docs/ERD.md` (generate via `scripts/generate-erd.ts` once mod
 
 | Area | Routes |
 |---|---|
-| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`, `POST /api/auth/google`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `POST /api/auth/password/forgot`, `POST /api/auth/password/reset` |
+| Auth | `POST /api/auth/registration/quiz-session`, `POST /api/auth/registration/google-intent`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`, `POST /api/auth/google`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `POST /api/auth/password/forgot`, `POST /api/auth/password/reset` |
 | Users/Profile | `GET/PATCH /api/users/me`, `GET/PATCH /api/profiles/me` |
 | Quiz | `POST /api/quiz/home-readiness`, `GET /api/quiz/home-readiness/result`, `POST /api/quiz/area`, `GET /api/quiz/area/result` |
 | Decision Engine (via composed endpoints) | `GET /api/recommendations/properties`, `POST /api/calculators/budget`, `POST /api/calculators/hidden-cost`, `POST /api/calculators/roi`, `GET /api/next-action` |
@@ -197,6 +197,19 @@ Full ERD lives in `docs/ERD.md` (generate via `scripts/generate-erd.ts` once mod
 | Inspections | `POST /api/inspections`, `GET /api/inspections/me` |
 | Events | `POST /api/events` (forwards to PostHog + `auditLogs`) |
 | Admin | `/api/admin/users`, `/api/admin/sub-admins`, `/api/admin/properties`, `/api/admin/crm`, `/api/admin/email-campaigns`, `/api/admin/prompts`, `/api/admin/areas`, `/api/admin/settings` |
+
+### Registration & anti-spam model
+
+Accounts can only be created from a completed Home-Readiness Quiz; the server enforces this and does not rely on the client.
+
+1. When an anonymous visitor opens the quiz, the client requests `POST /api/auth/registration/quiz-session`. That endpoint returns a signed, single-use JWT (`jti`, issued-at).
+2. `POST /api/auth/register` requires the quiz answers plus that token. The server rejects the request if the token is forged, expired, replayed, or submitted less than `REGISTRATION_MIN_QUIZ_SECONDS` after issue. It also rejects disposable or undeliverable email domains (blocklist plus an MX/DNS lookup) and spam-like names. A filled `website` honeypot gets a fake success response and no account is created.
+3. The answers are stored on the unverified user (`registrationQuiz`) and turned into a real quiz result only when the email is verified.
+4. Email OTP signs in existing accounts only; it never creates accounts.
+5. Google OAuth creates a new account only when the redirect carries a registration intent (`POST /api/auth/registration/google-intent` → OAuth `state`). Otherwise the user is sent back to `/register?error=quiz_required`.
+6. A daily job soft-deletes unverified accounts older than `UNVERIFIED_ACCOUNT_RETENTION_DAYS`. `pnpm --filter server run cleanup:spam-users` removes existing spam accounts; it is a dry run by default.
+
+Sessions use a sliding 30-day refresh token (`JWT_REFRESH_TTL`). The CSRF cookie has the same lifetime, and the client serializes refreshes across tabs with `navigator.locks`.
 
 ### Authorization model
 

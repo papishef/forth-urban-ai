@@ -5,12 +5,28 @@
  * adding createdAt/updatedAt/deletedAt/version to every model
  * (see docs/ARCHITECTURE.md#5-database-schema-mongodb-atlas).
  */
+import dns from "node:dns";
 import mongoose from "mongoose";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 
 const MAX_RETRY_DELAY_MS = 30_000;
 const INITIAL_RETRY_DELAY_MS = 1_000;
+const FALLBACK_DNS_SERVERS = ["1.1.1.1", "8.8.8.8"];
+
+let usingFallbackDns = false;
+
+// Some resolvers (e.g. mobile hotspots) return SRV answers Node's c-ares
+// rejects with EBADRESP, which breaks `mongodb+srv://` URIs. Switch to public
+// resolvers once so the connection can recover.
+function switchToFallbackDnsIfSrvFailed(err: unknown): boolean {
+  const syscall = (err as { syscall?: string } | null)?.syscall;
+  if (usingFallbackDns || syscall !== "querySrv") return false;
+  dns.setServers(FALLBACK_DNS_SERVERS);
+  usingFallbackDns = true;
+  logger.warn({ servers: FALLBACK_DNS_SERVERS }, "MongoDB SRV lookup failed, switching to fallback DNS servers");
+  return true;
+}
 
 /**
  * Connects to MongoDB with exponential backoff retry. Resolves once connected;
@@ -27,6 +43,7 @@ export async function connectDatabase(uri: string = env.MONGODB_URI): Promise<ty
       logger.info("Connected to MongoDB");
       return connection;
     } catch (err) {
+      if (switchToFallbackDnsIfSrvFailed(err)) continue;
       attempt += 1;
       const delay = Math.min(INITIAL_RETRY_DELAY_MS * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS);
       logger.error({ err, attempt, delay }, "MongoDB connection failed, retrying");
